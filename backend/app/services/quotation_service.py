@@ -96,11 +96,18 @@ async def add_line(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID
             raise NotFoundError("Variant not found or doesn't belong to product")
             
     # Resolve price using pricing logic
-    from app.api.v1.endpoints.pricing import _resolve_price # Reusing logic from endpoint
+    from app.api.v1.endpoints.pricing import resolve_price # Reusing logic from endpoint
     customer = (await db.execute(select(Customer).where(Customer.id == quotation.customer_id))).scalars().first()
     
-    price_info = await _resolve_price(db, customer, product, variant, qty)
-    unit_price = Decimal(price_info["final_price"])
+    price_info = await resolve_price(
+        product_id=product.id,
+        customer_id=customer.id if customer else None,
+        variant_id=variant.id if variant else None,
+        qty=int(qty),
+        db=db,
+        _=actor
+    )
+    unit_price = Decimal(price_info.unit_price)
     
     desc = product.name
     if variant:
@@ -260,10 +267,18 @@ async def generate_risk_preview(db: AsyncSession, quotation: Quotation) -> dict:
             "allowed_discount_pct": line.allowed_discount_pct or Decimal("0")
         })
         
-    risk_data = calculate_risk(lines_data, quotation.order_discount_pct, quotation.margin_pct, settings)
+    risk_data = calculate_risk(
+        lines_data,
+        quotation.order_discount_pct or Decimal("0"),
+        quotation.margin_pct or Decimal("0"),
+        settings
+    )
     
     quotation.risk_score = risk_data["risk"]
     quotation.risk_breakdown = risk_data
+    
+    # Keep 'risk' for risk_breakdown, but add 'risk_score' for schema compatibility
+    risk_data["risk_score"] = risk_data["risk"]
     
     # Write excess back to lines if we can
     for line_info in risk_data.get("lines", []):

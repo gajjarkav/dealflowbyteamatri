@@ -9,6 +9,7 @@ from app.models.quotation import Quotation, QuotationLine, QuotationEvent
 from app.models.upsell import UpsellRule
 from app.models.catalog import Product
 from app.models.enums import EventType
+from app.models.user import User
 from app.api.v1.endpoints.pricing import resolve_price # Note: In a real app we'd extract logic from endpoint to a service, but the spec says "import the function, don't HTTP-call yourself". Let's assume resolve_price logic is in pricing engine or we can just fetch it here.
 
 from app.services.quotation_calc import recompute
@@ -126,7 +127,7 @@ async def suggest(db: AsyncSession, quotation: Quotation) -> List[Dict[str, Any]
     
     return suggestions
 
-async def add(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID, actor_id: uuid.UUID) -> Quotation:
+async def add(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID, actor: User) -> Quotation:
     product = (await db.execute(select(Product).where(Product.id == product_id))).scalars().first()
     if not product:
         raise NotFoundError("Product not found")
@@ -156,7 +157,7 @@ async def add(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID, act
     event = QuotationEvent(
         quotation_id=quotation.id,
         type=EventType.upsell_added,
-        actor_id=actor_id,
+        actor_id=actor.id,
         message=f"Added upsell: {product.name}"
     )
     db.add(event)
@@ -164,11 +165,11 @@ async def add(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID, act
     await db.commit()
     return quotation
 
-async def dismiss(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID, actor_id: uuid.UUID) -> Quotation:
+async def dismiss(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID, actor: User) -> Quotation:
     if not quotation.dismissed_suggestions:
         quotation.dismissed_suggestions = []
         
-    if product_id not in quotation.dismissed_suggestions:
+    if str(product_id) not in quotation.dismissed_suggestions:
         # Pydantic JSONB lists need reallocation to trigger SQLAlchemy dirty flag
         new_list = list(quotation.dismissed_suggestions)
         new_list.append(str(product_id))
@@ -177,7 +178,7 @@ async def dismiss(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID,
         event = QuotationEvent(
             quotation_id=quotation.id,
             type=EventType.upsell_dismissed,
-            actor_id=actor_id,
+            actor_id=actor.id,
             message="Dismissed an upsell suggestion."
         )
         db.add(event)
