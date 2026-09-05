@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
 import { Card } from "@/components/ui/card"
-import { Search, Plus, Edit2, Trash2, Package, Tag, Layers, RefreshCcw } from "lucide-react"
+import { Search, Plus, Edit2, Trash2, Package, Tag, Layers, RefreshCcw, FolderPlus } from "lucide-react"
+import Link from "next/link"
 import {
   apiListProducts,
   apiCreateProduct,
   apiUpdateProduct,
   apiDeleteProduct,
   apiListCategories,
+  apiCreateCategory,
+  apiUpdateCategory,
   type ProductResponse,
   type CategoryResponse,
 } from "@/lib/api/catalog"
@@ -46,6 +49,11 @@ export default function ProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState(DEFAULT_FORM)
   const [saving, setSaving] = useState(false)
+
+  const [catDrawerOpen, setCatDrawerOpen] = useState(false)
+  const [editingCatId, setEditingCatId] = useState<string | null>(null)
+  const [catForm, setCatForm] = useState({ name: "", description: "" })
+  const [catSaving, setCatSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -137,6 +145,33 @@ export default function ProductsPage() {
 
   const catName = (id: string) => categories.find((c) => c.id === id)?.name || "—"
 
+  const openCatEdit = (c: CategoryResponse) => {
+    setEditingCatId(c.id)
+    setCatForm({ name: c.name, description: c.description || "" })
+    setCatDrawerOpen(true)
+  }
+
+  const handleCatSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!catForm.name) return
+    setCatSaving(true)
+    try {
+      if (editingCatId) {
+        await apiUpdateCategory(editingCatId, catForm)
+        toast({ title: "Category Updated" })
+      } else {
+        await apiCreateCategory(catForm)
+        toast({ title: "Category Created" })
+      }
+      setCatDrawerOpen(false)
+      load() // Reload products and categories
+    } catch {
+      toast({ title: "Error", description: "Save failed", type: "error" })
+    } finally {
+      setCatSaving(false)
+    }
+  }
+
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-[1200px] mx-auto pb-12">
       
@@ -151,6 +186,9 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="secondary" onClick={() => setCatDrawerOpen(true)} className="h-10">
+            Manage Categories
+          </Button>
           <Button onClick={openCreate} className="font-heading font-bold shadow-md h-10">
             <Plus className="w-4 h-4 mr-2" /> Add Product
           </Button>
@@ -217,10 +255,12 @@ export default function ProductsPage() {
                 ) : products.map((p) => (
                   <tr key={p.id} className="interactive-row bg-surface">
                     <td className="px-6 py-4">
-                      <div className="font-bold text-text-primary flex items-center gap-2">
-                        {p.name}
-                        {!p.is_active && <Badge variant="secondary" className="text-[9px] bg-surface-hover">Archived</Badge>}
-                      </div>
+                      <Link href={`/products/${p.id}`} className="hover:underline hover:text-accent transition-colors block">
+                        <div className="font-bold text-text-primary flex items-center gap-2">
+                          {p.name}
+                          {!p.is_active && <Badge variant="secondary" className="text-[9px] bg-surface-hover">Archived</Badge>}
+                        </div>
+                      </Link>
                       {p.variants.length > 0 && (
                         <div className="text-[10px] font-mono text-text-muted mt-1 uppercase">{p.variants.length} variant(s)</div>
                       )}
@@ -347,6 +387,65 @@ export default function ProductsPage() {
             </label>
           </div>
         </form>
+      </FormDrawer>
+
+      <FormDrawer
+        isOpen={catDrawerOpen}
+        onClose={() => setCatDrawerOpen(false)}
+        title="Manage Categories"
+        subtitle="Organize your product catalog"
+        footerActions={
+          !editingCatId && !catForm.name ? (
+            <Button variant="ghost" onClick={() => setCatDrawerOpen(false)}>Close</Button>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setCatDrawerOpen(false)}>Cancel</Button>
+              <Button onClick={handleCatSave} disabled={catSaving} className="font-bold shadow-sm">
+                {catSaving ? "Saving..." : editingCatId ? "Update" : "Create"}
+              </Button>
+            </>
+          )
+        }
+      >
+        <div className="mt-2 space-y-6">
+          <div className="space-y-3">
+            <div className="text-sm font-bold text-text-primary border-b border-border/50 pb-2">Existing Categories</div>
+            {categories.length === 0 ? (
+              <div className="text-sm text-text-muted">No categories defined yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {categories.map(c => (
+                  <div key={c.id} className="flex items-center justify-between bg-surface-hover p-2 rounded border border-border/50">
+                    <div>
+                      <div className="text-sm font-medium text-text-primary">{c.name}</div>
+                      {c.description && <div className="text-xs text-text-muted">{c.description}</div>}
+                    </div>
+                    <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => openCatEdit(c)}>Edit</Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!editingCatId && (
+              <Button variant="secondary" className="w-full text-xs h-8 mt-2" onClick={() => { setEditingCatId(null); setCatForm({ name: "", description: "" }) }}>
+                <FolderPlus className="w-3 h-3 mr-2" /> Create New Category
+              </Button>
+            )}
+          </div>
+
+          {(editingCatId || catForm.name || !editingCatId) && (
+            <form onSubmit={handleCatSave} className="space-y-4 pt-4 border-t border-border/50">
+              <div className="text-sm font-bold text-text-primary mb-2">{editingCatId ? "Edit Category" : "New Category"}</div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Name <span className="text-accent">*</span></label>
+                <Input value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} placeholder="e.g. Software Licenses" className="h-9 bg-surface shadow-sm" required />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Description</label>
+                <Input value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} placeholder="Optional description..." className="h-9 bg-surface shadow-sm" />
+              </div>
+            </form>
+          )}
+        </div>
       </FormDrawer>
     </motion.div>
   )

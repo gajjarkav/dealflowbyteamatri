@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input"
 import { useCurrentUser } from "@/lib/auth/context"
 import { motion, AnimatePresence } from "framer-motion"
 import { ArrowRight, LogIn, UserPlus, ShieldCheck, Zap, TrendingUp, KeyRound, Briefcase } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function LandingPage() {
+  const router = useRouter()
   const [authMode, setAuthMode] = useState<"login" | "signup">("login")
   const { login, signup } = useCurrentUser()
   
@@ -30,10 +32,19 @@ export default function LandingPage() {
     }
     setIsLoggingIn(true)
     try {
-      await login(loginEmail, loginPassword)
-      // Login automatically pushes to /dashboard if successful in context, or handles 2FA.
-    } catch {
-      setLoginError("Access denied. Please check your credentials.")
+      const result = await login(loginEmail, loginPassword)
+      // Login context returns a result or handles it internally. Since we are merging remote logic:
+      if (result && result.requires2FA) {
+        sessionStorage.setItem("2fa_email", result.email || loginEmail)
+        router.push("/verify-otp?purpose=login_2fa")
+      } else if (result && result.user?.role === "customer") {
+        router.push("/portal")
+      } else if (result) {
+        router.push("/dashboard")
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Access denied. Please check your credentials."
+      setLoginError(msg)
     } finally {
       setIsLoggingIn(false)
     }

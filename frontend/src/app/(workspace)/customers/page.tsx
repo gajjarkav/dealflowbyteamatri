@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
 import { Card } from "@/components/ui/card"
 import { Search, Plus, Edit2, Users, Building2, CreditCard, ShieldCheck } from "lucide-react"
+import Link from "next/link"
 import {
   apiListCustomers,
   apiCreateCustomer,
@@ -222,7 +223,9 @@ export default function CustomersPage() {
                 ) : customers.map((c) => (
                   <tr key={c.id} className="interactive-row bg-surface">
                     <td className="px-6 py-4">
-                      <div className="font-bold text-text-primary">{c.company_name}</div>
+                      <Link href={`/customers/${c.id}`} className="hover:underline hover:text-accent transition-colors block">
+                        <div className="font-bold text-text-primary">{c.company_name}</div>
+                      </Link>
                       {c.tax_id ? (
                         <div className="text-[10px] font-mono text-text-muted mt-1 uppercase">Tax ID: {c.tax_id}</div>
                       ) : (

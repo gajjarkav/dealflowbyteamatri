@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     ]
     
     # EMAIL
-    EMAIL_BACKEND: str = "console" # or "smtp"
+    EMAIL_BACKEND: str = "console" # or "smtp" or "resend"
+    RESEND_API_KEY: Optional[str] = None
     SMTP_TLS: bool = True
     SMTP_PORT: Optional[int] = 587
     SMTP_HOST: Optional[str] = None

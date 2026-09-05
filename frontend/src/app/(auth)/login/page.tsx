@@ -33,7 +33,11 @@ export default function LoginPage() {
         sessionStorage.setItem("2fa_email", result.email || email)
         router.push("/verify-otp?purpose=login_2fa")
       } else {
-        router.push("/dashboard")
+        if (result.user?.role === "customer") {
+          router.push("/portal")
+        } else {
+          router.push("/dashboard")
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Invalid credentials"

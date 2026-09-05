@@ -1,16 +1,29 @@
 "use client"
-import React from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
+import React, { useState } from "react"
 import { DataTable, Column } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
-import type { FulfillmentItem } from "@/lib/data/mockStore"
-import { mockStore } from "@/lib/data/mockStore"
+
+export interface FulfillmentItem {
+  id: string
+  orderNumber: string
+  customerName: string
+  warehouseCode: string
+  itemsSummary: string
+  status: "Allocated" | "Picking" | "Dispatched" | "Backordered"
+  trackingNumber: string
+}
+
+const INITIAL_FULFILLMENT: FulfillmentItem[] = [
+  { id: "ful-1", orderNumber: "ORD-9921", customerName: "Vercel Frontends", warehouseCode: "US-WEST-02", itemsSummary: "2x Dual AMD EPYC Compute Blade", status: "Dispatched", trackingNumber: "FEDEX-8892-0192" },
+  { id: "ful-2", orderNumber: "ORD-9922", customerName: "Stripe Enterprise", warehouseCode: "US-EAST-01", itemsSummary: "4x NVIDIA H100 SXM5 Node", status: "Allocated", trackingNumber: "Awaiting Carrier Pickup" },
+  { id: "ful-3", orderNumber: "ORD-9923", customerName: "Snowflake Computing", warehouseCode: "EU-CENT-01", itemsSummary: "2x H100 Node (Split Shipment)", status: "Backordered", trackingNumber: "ETA 2 Business Days" }
+]
 
 export default function FulfillmentPage() {
-  const store = useDataStore()
   const { toast } = useToast()
+  const [fulfillmentItems, setFulfillmentItems] = useState<FulfillmentItem[]>(INITIAL_FULFILLMENT)
 
   const handleUpdateStatus = (item: FulfillmentItem) => {
     const nextStatusMap: Record<FulfillmentItem["status"], FulfillmentItem["status"]> = {
@@ -20,10 +33,9 @@ export default function FulfillmentPage() {
       Backordered: "Allocated"
     }
     const nextStatus = nextStatusMap[item.status]
-    mockStore.fulfillment = store.fulfillment.map((f) =>
-      f.id === item.id ? { ...f, status: nextStatus } : f
+    setFulfillmentItems((prev) =>
+      prev.map((f) => (f.id === item.id ? { ...f, status: nextStatus } : f))
     )
-    mockStore.notify()
     toast({
       title: "Fulfillment Status Advanced",
       description: `${item.orderNumber} is now marked as "${nextStatus}".`,
@@ -111,7 +123,7 @@ export default function FulfillmentPage() {
       </div>
 
       <DataTable
-        data={store.fulfillment}
+        data={fulfillmentItems}
         columns={columns}
         searchPlaceholder="Search shipments by order or customer..."
         searchKey={(f) => `${f.orderNumber} ${f.customerName} ${f.warehouseCode}`}

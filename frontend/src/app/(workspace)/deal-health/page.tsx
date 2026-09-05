@@ -1,14 +1,34 @@
 "use client"
-import React from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
+import React, { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { apiListQuotations, type QuotationResponse } from "@/lib/api/quotations"
 
 export default function DealHealthPage() {
-  const store = useDataStore()
+  const [quotations, setQuotations] = useState<QuotationResponse[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const highRiskDeals = store.quotations.filter((q) => q.riskLevel === "High")
-  const healthyDeals = store.quotations.filter((q) => q.grossMarginPercent >= store.settings.targetGrossMarginPercent)
+  const load = useCallback(async () => {
+    try {
+      const res = await apiListQuotations({ size: 100 })
+      setQuotations(res.items)
+    } catch {
+      //
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
+
+  const highRiskDeals = quotations.filter((q) => q.risk_score && q.risk_score > 60)
+  const healthyDeals = quotations.filter((q) => (q.gross_margin_pct || 0) >= 40)
+
+  if (loading) return <div className="p-8"><Skeleton className="h-64 w-full" /></div>
 
   return (
     <div className="space-y-6">
@@ -27,7 +47,7 @@ export default function DealHealthPage() {
             {healthyDeals.length} <span className="text-sm font-normal text-text-secondary">deals</span>
           </div>
           <div className="text-[11px] text-text-muted mt-2 font-mono">
-            &ge; {store.settings.targetGrossMarginPercent}% Target Margin Floor
+            &ge; 40% Target Margin Floor
           </div>
         </Card>
 
@@ -77,19 +97,19 @@ export default function DealHealthPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {store.quotations.map((q) => (
+              {quotations.map((q) => (
                 <tr key={q.id} className="hover:bg-background/40 transition-colors">
-                  <td className="p-3 font-mono font-bold text-text-primary">{q.dealRef}</td>
-                  <td className="p-3 font-medium text-text-primary">{q.customerName}</td>
-                  <td className="p-3 font-mono font-bold text-text-primary">${q.totalAmount.toLocaleString()}</td>
-                  <td className="p-3 font-mono text-accent font-semibold">{q.discountPercent}%</td>
+                  <td className="p-3 font-mono font-bold text-text-primary">{q.number}</td>
+                  <td className="p-3 font-medium text-text-primary">{q.customer_name}</td>
+                  <td className="p-3 font-mono font-bold text-text-primary">${(q.total || 0).toLocaleString()}</td>
+                  <td className="p-3 font-mono text-accent font-semibold">{q.order_discount_pct}%</td>
                   <td className="p-3 font-mono">
-                    <span className={q.grossMarginPercent >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
-                      {q.grossMarginPercent}%
+                    <span className={(q.gross_margin_pct || 0) >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
+                      {q.gross_margin_pct != null ? `${q.gross_margin_pct.toFixed(1)}%` : "—"}
                     </span>
                   </td>
                   <td className="p-3">
-                    {q.riskLevel === "High" ? (
+                    {q.risk_score && q.risk_score > 60 ? (
                       <span className="text-accent font-medium flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-accent" />
                         Discount exceeds tier cap &amp; margin &lt; 35%

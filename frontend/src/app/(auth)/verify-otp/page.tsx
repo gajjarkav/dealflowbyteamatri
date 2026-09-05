@@ -54,12 +54,18 @@ function VerifyOtpContent() {
     setLoading(true)
     setError("")
     try {
+      let verifiedUser = null
       if (purpose === "signup") {
-        await verifyEmail(email, fullCode)
+        verifiedUser = await verifyEmail(email, fullCode)
       } else {
-        await verify2FA(email, fullCode)
+        verifiedUser = await verify2FA(email, fullCode)
       }
-      router.push("/dashboard")
+      
+      if (verifiedUser?.role === "customer") {
+        router.push("/portal")
+      } else {
+        router.push("/dashboard")
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Invalid OTP code"
       setError(msg)

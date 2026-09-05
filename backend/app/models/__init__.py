@@ -5,6 +5,7 @@ from .enums import (
     QuotationStatus, ApprovalStatus, ApprovalTrigger, EventType,
 )
 from .user import User, Customer
+from .billing import Invoice
 from .auth import VerificationCode, RefreshToken
 from .audit import AuditLog
 from .subscription import SubscriptionPlan
@@ -21,6 +22,7 @@ __all__ = [
     "IntervalEnum", "ProrationRuleEnum", "CancellationRuleEnum", "MovementReasonEnum",
     "QuotationStatus", "ApprovalStatus", "ApprovalTrigger", "EventType",
     "User", "Customer",
+    "Invoice",
     "VerificationCode", "RefreshToken",
     "AuditLog",
     "SubscriptionPlan",

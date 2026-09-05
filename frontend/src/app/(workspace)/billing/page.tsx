@@ -1,83 +1,102 @@
 "use client"
-import React from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
+import React, { useState, useEffect, useCallback } from "react"
 import { DataTable, Column } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { useToast } from "@/components/ui/toast"
-import type { InvoiceItem } from "@/lib/data/mockStore"
-import { mockStore } from "@/lib/data/mockStore"
+import { Skeleton } from "@/components/ui/skeleton"
+import { apiListInvoices, apiPayInvoice, type InvoiceResponse } from "@/lib/api/billing"
 
 export default function BillingPage() {
-  const store = useDataStore()
   const { toast } = useToast()
+  const [invoices, setInvoices] = useState<InvoiceResponse[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const handleMarkPaid = (inv: InvoiceItem) => {
-    mockStore.invoices = store.invoices.map((i) =>
-      i.id === inv.id ? { ...i, status: "Paid" } : i
-    )
-    mockStore.notify()
-    toast({
-      title: "Invoice Settled",
-      description: `${inv.invoiceNumber} recorded as Paid via ${inv.paymentMethod}.`,
-      type: "success"
-    })
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await apiListInvoices({ size: 100 })
+      setInvoices(res.items)
+    } catch {
+      toast({ title: "Error", description: "Failed to load invoices", type: "error" })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
+
+  const handleMarkPaid = async (inv: InvoiceResponse) => {
+    try {
+      await apiPayInvoice(inv.id)
+      toast({
+        title: "Invoice Settled",
+        description: `${inv.invoice_number} recorded as Paid.`,
+        type: "success"
+      })
+      load()
+    } catch {
+      toast({ title: "Error", description: "Failed to pay invoice", type: "error" })
+    }
   }
 
-  const totalBilled = store.invoices.reduce((sum, i) => sum + i.amount, 0)
-  const totalCollected = store.invoices
+  const totalBilled = invoices.reduce((sum, i) => sum + (i.amount || 0), 0)
+  const totalCollected = invoices
     .filter((i) => i.status === "Paid")
-    .reduce((sum, i) => sum + i.amount, 0)
+    .reduce((sum, i) => sum + (i.amount || 0), 0)
 
-  const columns: Column<InvoiceItem>[] = [
+  const columns: Column<InvoiceResponse>[] = [
     {
-      key: "invoiceNumber",
+      key: "invoice_number",
       header: "Invoice Reference",
       render: (i) => (
         <div>
-          <span className="font-mono font-bold text-text-primary text-xs">{i.invoiceNumber}</span>
-          <span className="text-[11px] text-text-muted font-mono block">Ref: {i.quotationRef}</span>
+          <span className="font-mono font-bold text-text-primary text-xs">{i.invoice_number}</span>
+          <span className="text-[11px] text-text-muted font-mono block">Ref: {i.quotation_id?.slice(0, 8) || "—"}</span>
         </div>
       )
     },
     {
-      key: "customerName",
+      key: "customer_name",
       header: "Billed Entity",
-      render: (i) => <span className="font-semibold text-text-primary text-xs">{i.customerName}</span>
+      render: (i) => <span className="font-semibold text-text-primary text-xs">{i.customer_name || "—"}</span>
     },
     {
       key: "amount",
       header: "Invoice Amount",
       render: (i) => (
         <span className="font-mono font-bold text-text-primary text-xs">
-          ${i.amount.toLocaleString()}
+          ${(i.amount || 0).toLocaleString()}
         </span>
       )
     },
     {
-      key: "dueDate",
+      key: "due_date",
       header: "Payment Due",
-      render: (i) => <span className="font-mono text-xs text-text-secondary">{i.dueDate}</span>
+      render: (i) => <span className="font-mono text-xs text-text-secondary">{i.due_date || "—"}</span>
     },
     {
-      key: "paymentMethod",
+      key: "payment_method",
       header: "Settlement Method",
-      render: (i) => <span className="text-xs text-text-secondary">{i.paymentMethod}</span>
+      render: (i) => <span className="text-xs text-text-secondary">{i.payment_method || "—"}</span>
     },
     {
       key: "status",
       header: "Status",
       render: (i) => {
-        const colors = {
+        const colors: Record<string, string> = {
           Draft: "border-border text-text-muted",
           Sent: "border-blue-500/50 text-blue-600 bg-blue-500/5",
           Paid: "border-emerald-500/50 text-emerald-600 bg-emerald-500/5",
           Overdue: "border-danger text-danger bg-danger/5"
-        }[i.status]
-
+        }
+        
         return (
-          <Badge variant="secondary" className={`font-mono text-xs ${colors}`}>
+          <Badge variant="secondary" className={`font-mono text-xs ${colors[i.status] || colors.Draft}`}>
             {i.status}
           </Badge>
         )
@@ -103,6 +122,15 @@ export default function BillingPage() {
     }
   ]
 
+  if (loading && invoices.length === 0) {
+    return (
+      <div className="p-8 space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -118,7 +146,6 @@ export default function BillingPage() {
         </Badge>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-4 border-border bg-surface">
           <div className="text-xs font-mono text-text-secondary">TOTAL BILLED DISBURSEMENTS</div>
@@ -143,10 +170,10 @@ export default function BillingPage() {
       </div>
 
       <DataTable
-        data={store.invoices}
+        data={invoices}
         columns={columns}
         searchPlaceholder="Search invoices by reference or customer..."
-        searchKey={(i) => `${i.invoiceNumber} ${i.quotationRef} ${i.customerName}`}
+        searchKey={(i) => `${i.invoice_number} ${i.quotation_id} ${i.customer_name}`}
         title="Disbursement Invoices"
         subtitle="Automatic invoice generation triggered upon quotation acceptance"
       />
