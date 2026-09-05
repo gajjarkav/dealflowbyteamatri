@@ -30,12 +30,12 @@
 
 ## Phase Overview (8 Phases, 27.5 Hours)
 
-| Phase | Hours | Clock (IST) | Goal | MVP-critical? |
-|---|---|---|---|---|
-| **Phase 0** | 1.5h | 06:30–08:00 | Project setup: Next.js 16, Tailwind v4, ESLint, folder structure, git init | ✅ |
-| **Phase 1** | 3h | 08:00–11:00 | Foundation: design tokens, layout shell, navigation, mock data layer (MSW), Zod schemas, types | ✅ |
-| **Phase 2** | 3h | 11:00–14:00 | Auth + Landing + Dashboard (Screens 1, 2) | ✅ |
-| **Phase 3** | 4h | 14:00–18:00 | Quotations: List/Kanban + Builder + Detail (Screens 3, 4) + Upsell Panel + Blended Risk Score | ✅ |
+| Phase | Hours | Clock (IST) | Goal | MVP-critical? | Status |
+|---|---|---|---|---|---|
+| **Phase 0** | 1.5h | 06:30–08:00 | Project setup: Next.js 16, Tailwind v4, ESLint, folder structure, git init | ✅ | ✅ Completed |
+| **Phase 1** | 3h | 08:00–15:40 | App shells & plumbing, role matrix, 10+ CRUD & governance screens, Customer Portal, 404 page | ✅ | ✅ Completed |
+| **Phase 2** | 3h | 15:40–18:00 | Quotation Builder detailed line item discounting, dynamic margins, blended risk scores | ✅ | ⏳ Up next |
+| **Phase 3** | 4h | 18:00–21:00 | Real-time negotiation portal synchronization and Odoo webhook handlers | ✅ | ⏳ Queue |
 | **Phase 4** | 3h | 18:00–21:00 | Approvals + Fulfillment (Screens 5, 6, 7, 8) | Stretch |
 | **Phase 5** | 2h | 21:00–23:00 | Subscriptions + Invoices (Screens 9, 10, 12, 13) | Stretch |
 | — | 4h | 23:00–03:00 | **SLEEP** (mandatory — no skipping) | — |
