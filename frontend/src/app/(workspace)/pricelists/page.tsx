@@ -190,7 +190,7 @@ export default function PricelistsPage() {
               <h2 className="text-sm font-medium text-text-secondary">{selectedPricelist.name} — Items</h2>
               <div className="flex gap-2">
                 <Link href={`/pricelists/${selectedPricelist.id}`}>
-                  <Button variant="outline" className="h-7 px-3 text-xs">Full Details & Test</Button>
+                          <Button variant="secondary" className="h-7 px-3 text-[10px] uppercase tracking-widest font-bold">Details</Button>
                 </Link>
                 <Button variant="secondary" className="h-7 px-3 text-xs" onClick={() => { setNewItem({ product_id: "", fixed_price: "", discount_pct: "", min_qty: 1 }); setAddItemOpen(true) }}>+ Add Item</Button>
               </div>

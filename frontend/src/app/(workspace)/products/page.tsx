@@ -426,7 +426,7 @@ export default function ProductsPage() {
               </div>
             )}
             {!editingCatId && (
-              <Button variant="outline" className="w-full text-xs h-8 mt-2" onClick={() => { setEditingCatId(null); setCatForm({ name: "", description: "" }) }}>
+              <Button variant="secondary" className="w-full text-xs h-8 mt-2" onClick={() => { setEditingCatId(null); setCatForm({ name: "", description: "" }) }}>
                 <FolderPlus className="w-3 h-3 mr-2" /> Create New Category
               </Button>
             )}

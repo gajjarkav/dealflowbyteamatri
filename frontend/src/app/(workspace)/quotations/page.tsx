@@ -87,7 +87,7 @@ export default function QuotationsListPage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-9 px-3">
+          <Button variant="secondary" className="h-9 px-3">
             <Filter className="w-4 h-4 mr-2" /> Filter
           </Button>
         </div>
@@ -156,7 +156,7 @@ export default function QuotationsListPage() {
         <div className="flex items-center justify-between text-xs text-text-muted">
           <span>Showing page {page} of {Math.ceil(total / 20)}</span>
           <div className="flex gap-2">
-            <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Prev</Button>
+            <Button variant="secondary" className="h-7 px-2.5 text-xs text-text-secondary hover:text-text-primary font-medium" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Prev</Button>
             <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>Next →</Button>
           </div>
         </div>
