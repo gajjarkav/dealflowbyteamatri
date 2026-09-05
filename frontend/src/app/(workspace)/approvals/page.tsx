@@ -258,7 +258,7 @@ export default function ApprovalsPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border/40">
-                              {selected.quotation.lines.map((line: {product_name: string; discount_pct: number; line_total: number; margin_pct: number}, i: number) => (
+                              {selected.quotation.lines.map((line: {product_name: string; qty?: number; discount_pct?: number; line_total: number; margin_pct?: number}, i: number) => (
                                 <tr key={i} className="hover:bg-surface/50 transition-colors">
                                   <td className="px-4 py-3 font-medium text-text-primary truncate max-w-[200px]">{line.product_name}</td>
                                   <td className="px-4 py-3 text-right font-mono text-xs">

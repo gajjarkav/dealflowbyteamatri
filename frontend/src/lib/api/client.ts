@@ -144,7 +144,7 @@ export async function apiFetch<T>(
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-export function buildQuery(params: Record<string, unknown>): string {
+export function buildQuery(params: Record<string, string | number | boolean | undefined | null>): string {
   const q = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null && v !== "") q.set(k, String(v))
