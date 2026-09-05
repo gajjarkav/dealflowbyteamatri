@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   status?: "default" | "success" | "warning" | "danger"
+  variant?: "default" | "secondary" | "outline" | "destructive" | (string & {})
 }
 
 function Badge({ className, status = "default", children, ...props }: BadgeProps) {

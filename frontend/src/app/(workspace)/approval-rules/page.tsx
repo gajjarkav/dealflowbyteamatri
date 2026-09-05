@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
 import type { ApprovalRuleItem } from "@/lib/data/mockStore"
+import { mockStore } from "@/lib/data/mockStore"
 
 export default function ApprovalRulesPage() {
   const store = useDataStore()
@@ -47,8 +48,8 @@ export default function ApprovalRulesPage() {
       ...formData
     }
 
-    store.approvalRules = [...store.approvalRules, newRule]
-    store.notify()
+    mockStore.approvalRules = [...store.approvalRules, newRule]
+    mockStore.notify()
     toast({ title: "Approval Rule Added", description: `${formData.title} published to governance engine.` })
     setDrawerOpen(false)
   }

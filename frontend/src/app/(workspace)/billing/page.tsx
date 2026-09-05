@@ -7,16 +7,17 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { useToast } from "@/components/ui/toast"
 import type { InvoiceItem } from "@/lib/data/mockStore"
+import { mockStore } from "@/lib/data/mockStore"
 
 export default function BillingPage() {
   const store = useDataStore()
   const { toast } = useToast()
 
   const handleMarkPaid = (inv: InvoiceItem) => {
-    store.invoices = store.invoices.map((i) =>
+    mockStore.invoices = store.invoices.map((i) =>
       i.id === inv.id ? { ...i, status: "Paid" } : i
     )
-    store.notify()
+    mockStore.notify()
     toast({
       title: "Invoice Settled",
       description: `${inv.invoiceNumber} recorded as Paid via ${inv.paymentMethod}.`,

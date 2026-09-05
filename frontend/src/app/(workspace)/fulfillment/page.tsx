@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
 import type { FulfillmentItem } from "@/lib/data/mockStore"
+import { mockStore } from "@/lib/data/mockStore"
 
 export default function FulfillmentPage() {
   const store = useDataStore()
@@ -19,10 +20,10 @@ export default function FulfillmentPage() {
       Backordered: "Allocated"
     }
     const nextStatus = nextStatusMap[item.status]
-    store.fulfillment = store.fulfillment.map((f) =>
+    mockStore.fulfillment = store.fulfillment.map((f) =>
       f.id === item.id ? { ...f, status: nextStatus } : f
     )
-    store.notify()
+    mockStore.notify()
     toast({
       title: "Fulfillment Status Advanced",
       description: `${item.orderNumber} is now marked as "${nextStatus}".`,

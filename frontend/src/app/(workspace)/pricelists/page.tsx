@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
 import type { PriceListItem } from "@/lib/data/mockStore"
+import { mockStore } from "@/lib/data/mockStore"
 
 export default function PriceListsPage() {
   const store = useDataStore()
@@ -51,8 +52,8 @@ export default function PriceListsPage() {
       isDefault: formData.isDefault
     }
 
-    store.pricelists = [newItem, ...store.pricelists]
-    store.notify()
+    mockStore.pricelists = [newItem, ...store.pricelists]
+    mockStore.notify()
     toast({ title: "Price List Created", description: `${formData.name} price schedule saved.` })
     setDrawerOpen(false)
   }

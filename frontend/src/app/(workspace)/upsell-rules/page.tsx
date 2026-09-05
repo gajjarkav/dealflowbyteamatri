@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
 import type { UpsellRuleItem } from "@/lib/data/mockStore"
+import { mockStore } from "@/lib/data/mockStore"
 
 export default function UpsellRulesPage() {
   const store = useDataStore()
@@ -37,17 +38,17 @@ export default function UpsellRulesPage() {
       active: formData.active
     }
 
-    store.upsellRules = [...store.upsellRules, newRule]
-    store.notify()
+    mockStore.upsellRules = [...store.upsellRules, newRule]
+    mockStore.notify()
     toast({ title: "Upsell Rule Configured", description: "Cross-sell bundle trigger added to quotation engine." })
     setDrawerOpen(false)
   }
 
   const toggleRuleActive = (rule: UpsellRuleItem) => {
-    store.upsellRules = store.upsellRules.map((r) =>
+    mockStore.upsellRules = store.upsellRules.map((r) =>
       r.id === rule.id ? { ...r, active: !r.active } : r
     )
-    store.notify()
+    mockStore.notify()
     toast({
       title: !rule.active ? "Upsell Rule Activated" : "Upsell Rule Paused",
       description: `${rule.triggerProduct} rule state updated.`

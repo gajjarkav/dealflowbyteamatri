@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
 import type { SubscriptionPlanItem } from "@/lib/data/mockStore"
+import { mockStore } from "@/lib/data/mockStore"
 
 export default function SubscriptionPlansPage() {
   const store = useDataStore()
@@ -42,8 +43,8 @@ export default function SubscriptionPlansPage() {
       features: formData.featuresText.split("\n").filter((f) => f.trim().length > 0)
     }
 
-    store.plans = [...store.plans, newPlan]
-    store.notify()
+    mockStore.plans = [...store.plans, newPlan]
+    mockStore.notify()
     toast({ title: "Plan Published", description: `${formData.name} subscription plan created.` })
     setDrawerOpen(false)
   }
