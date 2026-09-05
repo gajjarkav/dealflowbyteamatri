@@ -75,7 +75,11 @@ export default function LandingPage() {
         sessionStorage.setItem("2fa_email", result.email || loginEmail)
         router.push("/verify-otp?purpose=login_2fa")
       } else {
-        router.push("/dashboard")
+        if (result.user?.role === "customer") {
+          router.push("/portal")
+        } else {
+          router.push("/dashboard")
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to sign in. Please try again."

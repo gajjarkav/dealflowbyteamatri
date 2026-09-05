@@ -31,15 +31,15 @@ interface AuthContextType {
   user: UserResponse | null
   isLoading: boolean
   // Auth flows
-  login: (email: string, password: string) => Promise<{ requires2FA: boolean; email?: string }>
+  login: (email: string, password: string) => Promise<{ requires2FA: boolean; email?: string; user?: UserResponse | null }>
   logout: () => Promise<void>
   signup: (data: SignupData) => Promise<void>
-  verifyEmail: (email: string, code: string) => Promise<void>
-  verify2FA: (email: string, code: string) => Promise<void>
+  verifyEmail: (email: string, code: string) => Promise<UserResponse | null>
+  verify2FA: (email: string, code: string) => Promise<UserResponse | null>
   forgotPassword: (email: string) => Promise<void>
   resetPassword: (email: string, code: string, newPassword: string) => Promise<void>
   resendOtp: (email: string, purpose: "signup_verify" | "password_reset") => Promise<void>
-  refreshUser: () => Promise<void>
+  refreshUser: () => Promise<UserResponse | null>
 }
 
 // ── Context ────────────────────────────────────────────────────────────────────
@@ -55,9 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const me = await apiGetMe()
       setUser(me)
+      return me
     } catch {
       setUser(null)
       clearTokens()
+      return null
     }
   }, [])
 
@@ -80,8 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { requires2FA: true, email: res.email }
     }
     // Tokens already stored by apiLogin
-    await refreshUser()
-    return { requires2FA: false }
+    const me = await refreshUser()
+    return { requires2FA: false, user: me }
   }
 
   const signup = async (data: SignupData) => {
@@ -91,12 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyEmail = async (email: string, code: string) => {
     await apiVerifyEmail(email, code)
-    await refreshUser()
+    return await refreshUser()
   }
 
   const verify2FA = async (email: string, code: string) => {
     await apiVerify2FA(email, code)
-    await refreshUser()
+    return await refreshUser()
   }
 
   const logout = async () => {
