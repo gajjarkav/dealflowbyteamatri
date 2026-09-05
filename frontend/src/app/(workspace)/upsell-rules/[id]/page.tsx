@@ -1,37 +1,66 @@
 "use client"
-import React, { useState } from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
+import React, { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/toast"
 import { useParams, useRouter } from "next/navigation"
+import { apiGetUpsellRule, apiUpdateUpsellRule, UpsellRuleResponse } from "@/lib/api/upsell"
+import { apiListProducts, ProductResponse } from "@/lib/api/catalog"
+import { Skeleton } from "@/components/ui/skeleton"
+import Link from "next/link"
 
 export default function UpsellRuleDetailPage() {
   const { id } = useParams()
   const router = useRouter()
-  const store = useDataStore()
   const { toast } = useToast()
   
-  const [formData, setFormData] = useState({
-    id: id as string,
-    name: "Hardware Support Cross-sell",
-    triggerProductId: store.products[0]?.id || "",
-    suggestedProductId: store.products[1]?.id || "",
-    active: true,
-    confidenceScore: 85
-  })
+  const [formData, setFormData] = useState<Partial<UpsellRuleResponse>>({})
+  const [products, setProducts] = useState<ProductResponse[]>([])
+  
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (typeof id !== "string") return
+    Promise.all([
+      apiGetUpsellRule(id),
+      apiListProducts({ size: 100 })
+    ])
+    .then(([rule, prods]) => {
+      setFormData(rule)
+      setProducts(prods.items)
+    })
+    .catch(err => setError(err.message))
+    .finally(() => setLoading(false))
+  }, [id])
+
+  if (loading) return <div className="p-8"><Skeleton className="h-48 w-full" /></div>
+  if (error || !formData.id) return <div className="p-8">Upsell rule not found. <Link href="/plans" className="text-accent">Go back</Link></div>
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    toast({ title: "Upsell Rule Updated", description: "AI suggestion rules saved.", type: "success" })
+    if (typeof id !== "string") return
+    try {
+      const updated = await apiUpdateUpsellRule(id, {
+        name: formData.name,
+        trigger_product_id: formData.trigger_product_id,
+        suggest_product_id: formData.suggest_product_id,
+        min_qty: formData.min_qty || undefined,
+        is_active: formData.is_active
+      })
+      setFormData(updated)
+      toast({ title: "Upsell Rule Updated", type: "success" })
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Error", type: "error" })
+    }
   }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.push("/upsell-rules")} className="px-2">&larr; Back</Button>
+          <Button variant="ghost" onClick={() => router.push("/plans")} className="px-2">&larr; Back</Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-text-primary">
               {formData.name}
@@ -49,19 +78,20 @@ export default function UpsellRuleDetailPage() {
         <form className="space-y-6">
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1">Rule Descriptive Name</label>
-            <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            <Input value={formData.name || ""} onChange={e => setFormData({...formData, name: e.target.value})} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border border-dashed border-border rounded-lg bg-background/50">
             <div>
               <label className="block text-sm font-semibold text-text-primary mb-2">IF Customer buys:</label>
               <select
-                value={formData.triggerProductId}
-                onChange={e => setFormData({...formData, triggerProductId: e.target.value})}
+                value={formData.trigger_product_id || ""}
+                onChange={e => setFormData({...formData, trigger_product_id: e.target.value})}
                 className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm focus:border-accent outline-none"
               >
-                {store.products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                <option value="">Select product...</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ""}</option>
                 ))}
               </select>
             </div>
@@ -69,31 +99,32 @@ export default function UpsellRuleDetailPage() {
             <div>
               <label className="block text-sm font-semibold text-accent mb-2">THEN Suggest:</label>
               <select
-                value={formData.suggestedProductId}
-                onChange={e => setFormData({...formData, suggestedProductId: e.target.value})}
+                value={formData.suggest_product_id || ""}
+                onChange={e => setFormData({...formData, suggest_product_id: e.target.value})}
                 className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm focus:border-accent outline-none"
               >
-                {store.products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                <option value="">Select product...</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ""}</option>
                 ))}
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Confidence Score (0-100)</label>
-            <Input type="number" min="0" max="100" value={formData.confidenceScore} onChange={e => setFormData({...formData, confidenceScore: Number(e.target.value)})} />
-            <span className="text-[11px] text-text-muted mt-1 block">Higher confidence scores rank higher in the Quotation Builder suggestions panel.</span>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Minimum Trigger Quantity (Optional)</label>
+            <Input type="number" min="1" value={formData.min_qty || ""} onChange={e => setFormData({...formData, min_qty: parseInt(e.target.value) || 0})} placeholder="e.g. 5" />
+            <span className="text-[11px] text-text-muted mt-1 block">Only suggest if they buy at least this many.</span>
           </div>
 
           <div className="flex items-center gap-2 mt-4">
             <input 
               type="checkbox" 
-              id="active" 
-              checked={formData.active}
-              onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+              id="is_active" 
+              checked={formData.is_active || false}
+              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
             />
-            <label htmlFor="active" className="text-sm">Rule is Active</label>
+            <label htmlFor="is_active" className="text-sm">Rule is Active</label>
           </div>
         </form>
       </Card>

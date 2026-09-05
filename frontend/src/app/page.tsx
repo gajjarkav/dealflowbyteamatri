@@ -8,26 +8,19 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ArrowRight, LogIn, UserPlus, ShieldCheck, Zap, TrendingUp, KeyRound, Briefcase } from "lucide-react"
 
 export default function LandingPage() {
-<<<<<<< HEAD
+  const router = useRouter()
   const [authMode, setAuthMode] = useState<"login" | "signup">("login")
   const { login, signup } = useCurrentUser()
-=======
-  const router = useRouter()
-  const { login } = useCurrentUser()
->>>>>>> e6b05c7f1ac15cc0d3bfb7eef9436d19a4f5812f
   
   // Form states
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginError, setLoginError] = useState("")
-<<<<<<< HEAD
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   
   const [signupData, setSignupData] = useState({ name: "", email: "", password: "", phone: "", company: "" })
   const [signupError, setSignupError] = useState("")
   const [isSigningUp, setIsSigningUp] = useState(false)
-=======
->>>>>>> e6b05c7f1ac15cc0d3bfb7eef9436d19a4f5812f
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,11 +31,20 @@ export default function LandingPage() {
     }
     setIsLoggingIn(true)
     try {
-<<<<<<< HEAD
-      await login(loginEmail, loginPassword)
-      // Login automatically pushes to /dashboard if successful in context, or handles 2FA.
-    } catch {
-      setLoginError("Access denied. Please check your credentials.")
+      const result = await login(loginEmail, loginPassword)
+      if (result.requires2FA) {
+        sessionStorage.setItem("2fa_email", result.email || loginEmail)
+        router.push("/verify-otp?purpose=login_2fa")
+      } else {
+        if (result.user?.role === "customer") {
+          router.push("/portal")
+        } else {
+          router.push("/dashboard")
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to sign in. Please try again."
+      setLoginError(msg)
     } finally {
       setIsLoggingIn(false)
     }
@@ -69,22 +71,6 @@ export default function LandingPage() {
       setSignupError("Registration failed. Email might be in use.")
     } finally {
       setIsSigningUp(false)
-=======
-      const result = await login(loginEmail, loginPassword)
-      if (result.requires2FA) {
-        sessionStorage.setItem("2fa_email", result.email || loginEmail)
-        router.push("/verify-otp?purpose=login_2fa")
-      } else {
-        if (result.user?.role === "customer") {
-          router.push("/portal")
-        } else {
-          router.push("/dashboard")
-        }
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to sign in. Please try again."
-      setLoginError(msg)
->>>>>>> e6b05c7f1ac15cc0d3bfb7eef9436d19a4f5812f
     }
   }
 

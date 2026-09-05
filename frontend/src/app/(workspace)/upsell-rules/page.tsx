@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
+import Link from "next/link"
 import {
   apiListUpsellRules,
   apiCreateUpsellRule,
@@ -162,6 +163,9 @@ export default function UpsellRulesPage() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
+                    <Link href={`/upsell-rules/${r.id}`}>
+                      <Button variant="ghost" className="h-7 px-2.5 text-xs">Details</Button>
+                    </Link>
                     <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEdit(r)}>Edit</Button>
                     <Button variant="ghost" className="h-7 px-2.5 text-xs text-danger hover:text-danger" onClick={() => handleDelete(r.id, r.name)}>Del</Button>
                   </div>

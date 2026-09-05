@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog } from "@/components/ui/dialog"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
+import Link from "next/link"
 import { Box, Building2, Plus, Layers, TrendingUp, MapPin, Archive } from "lucide-react"
 import {
   apiListWarehouses,
@@ -207,8 +208,13 @@ export default function WarehousesPage() {
                   <div className="text-[10px] font-mono text-text-muted uppercase tracking-widest">
                     ID: {wh.id.slice(0, 8)}
                   </div>
-                  <div className="text-xs font-bold text-accent group-hover:translate-x-1 transition-transform flex items-center">
-                    Stock Ledger <span className="ml-1">→</span>
+                  <div className="flex gap-2">
+                    <Link href={`/warehouses/${wh.id}`} onClick={(e) => e.stopPropagation()}>
+                      <Button variant="secondary" className="h-6 px-2 text-xs">Details</Button>
+                    </Link>
+                    <div className="text-xs font-bold text-accent group-hover:translate-x-1 transition-transform flex items-center">
+                      Stock Ledger <span className="ml-1">→</span>
+                    </div>
                   </div>
                 </div>
               </Card>

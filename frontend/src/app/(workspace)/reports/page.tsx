@@ -1,15 +1,35 @@
 "use client"
-import React from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
+import React, { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { apiListQuotations, type QuotationResponse } from "@/lib/api/quotations"
 
 export default function ReportsPage() {
-  const store = useDataStore()
+  const [quotations, setQuotations] = useState<QuotationResponse[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const totalWon = store.quotations
-    .filter((q) => q.stage === "Accepted" || q.stage === "Done")
-    .reduce((sum, q) => sum + q.totalAmount, 0)
+  const load = useCallback(async () => {
+    try {
+      const res = await apiListQuotations({ size: 100 })
+      setQuotations(res.items)
+    } catch {
+      //
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
+
+  const totalWon = quotations
+    .filter((q) => q.status === "accepted" || q.status === "fulfilled")
+    .reduce((sum, q) => sum + (q.total || 0), 0)
+
+  if (loading) return <div className="p-8"><Skeleton className="h-64 w-full" /></div>
 
   return (
     <div className="space-y-6">

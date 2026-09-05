@@ -1,5 +1,5 @@
 "use client"
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useCurrentUser } from "@/lib/auth/context"
 import { Button } from "@/components/ui/button"
@@ -14,11 +14,17 @@ function ResetPasswordForm() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [timer, setTimer] = useState(60)
   const router = useRouter()
-  const { resetPassword } = useCurrentUser()
+  const { resetPassword, resendOtp } = useCurrentUser()
 
   const email =
     typeof window !== "undefined" ? sessionStorage.getItem("reset_email") || "" : ""
+
+  useEffect(() => {
+    const int = setInterval(() => setTimer((t) => (t > 0 ? t - 1 : 0)), 1000)
+    return () => clearInterval(int)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +51,16 @@ function ResetPasswordForm() {
       setError(msg)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (timer > 0) return
+    try {
+      await resendOtp(email, "password_reset")
+      setTimer(60)
+    } catch {
+      setError("Failed to resend OTP")
     }
   }
 
@@ -121,6 +137,20 @@ function ResetPasswordForm() {
           </Button>
         </div>
       </form>
+
+      <div className="mt-6 text-center text-sm">
+        <button
+          onClick={handleResend}
+          disabled={timer > 0}
+          className={`font-medium transition-colors ${
+            timer > 0
+              ? "text-text-muted cursor-not-allowed"
+              : "text-accent hover:text-accent-hover"
+          }`}
+        >
+          {timer > 0 ? `Didn't receive? Resend in ${timer}s` : "Resend code"}
+        </button>
+      </div>
     </>
   )
 }

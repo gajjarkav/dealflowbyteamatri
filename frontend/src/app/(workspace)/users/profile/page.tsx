@@ -4,6 +4,7 @@ import { useCurrentUser } from "@/lib/auth/context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/toast"
+import { apiChangePassword } from "@/lib/api/users"
 
 export default function UserProfilePage() {
   const { user } = useCurrentUser()
@@ -15,7 +16,7 @@ export default function UserProfilePage() {
     confirmPassword: ""
   })
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.newPassword !== formData.confirmPassword) {
       toast({ title: "Error", description: "New passwords do not match.", type: "error" })
@@ -25,9 +26,15 @@ export default function UserProfilePage() {
       toast({ title: "Error", description: "Password must be at least 6 characters.", type: "error" })
       return
     }
-    // Mock save
-    toast({ title: "Success", description: "Password updated successfully.", type: "success" })
-    setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" })
+    
+    try {
+      await apiChangePassword(formData.currentPassword, formData.newPassword)
+      toast({ title: "Success", description: "Password updated successfully.", type: "success" })
+      setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update password."
+      toast({ title: "Error", description: msg, type: "error" })
+    }
   }
 
   if (!user) return <div>Loading...</div>

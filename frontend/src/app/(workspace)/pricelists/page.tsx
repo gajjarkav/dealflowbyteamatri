@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
+import Link from "next/link"
 import {
   apiListPricelists,
   apiCreatePricelist,
@@ -187,7 +188,12 @@ export default function PricelistsPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-medium text-text-secondary">{selectedPricelist.name} — Items</h2>
-              <Button variant="secondary" className="h-7 px-3 text-xs" onClick={() => { setNewItem({ product_id: "", fixed_price: "", discount_pct: "", min_qty: 1 }); setAddItemOpen(true) }}>+ Add Item</Button>
+              <div className="flex gap-2">
+                <Link href={`/pricelists/${selectedPricelist.id}`}>
+                  <Button variant="outline" className="h-7 px-3 text-xs">Full Details & Test</Button>
+                </Link>
+                <Button variant="secondary" className="h-7 px-3 text-xs" onClick={() => { setNewItem({ product_id: "", fixed_price: "", discount_pct: "", min_qty: 1 }); setAddItemOpen(true) }}>+ Add Item</Button>
+              </div>
             </div>
             {items.length === 0 ? (
               <div className="text-center py-6 border border-dashed border-border rounded text-text-muted text-xs">No items. Add products to this pricelist.</div>

@@ -218,7 +218,8 @@ export default function DashboardPage() {
                     <YAxis hide domain={['dataMin - 1000', 'dataMax + 1000']} />
                     <RechartsTooltip 
                       contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)', fontFamily: 'var(--font-sans)', fontSize: '12px' }}
-                      formatter={(val: number | string) => [`$${Number(val).toLocaleString()}`, 'Deal Value'] as [string, string]}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={(val: any) => [`$${Number(val).toLocaleString()}`, 'Deal Value'] as [string, string]}
                     />
                     <Area type="monotone" dataKey="value" stroke="var(--color-accent)" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
                   </AreaChart>

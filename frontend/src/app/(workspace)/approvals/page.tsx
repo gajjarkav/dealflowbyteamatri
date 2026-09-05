@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
 import { Dialog } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { CheckCircle2, XCircle, RotateCcw, Filter, UserCog, History, ShieldAlert } from "lucide-react"
+import Link from "next/link"
+import { CheckCircle2, XCircle, RotateCcw, Filter, UserCog, History, ShieldAlert, Package, ArrowUpRight } from "lucide-react"
 import {
   apiListApprovals,
   apiApproveStep,
@@ -67,7 +68,6 @@ export default function ApprovalsPage() {
   }, [statusFilter, page])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
   }, [load])
 
@@ -230,11 +230,16 @@ export default function ApprovalsPage() {
                         </p>
                       </div>
                       
-                      <div className="bg-background/80 backdrop-blur border border-border/50 p-4 rounded-xl text-right">
+                      <div className="bg-background/80 backdrop-blur border border-border/50 p-4 rounded-xl text-right flex flex-col items-end">
                         <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest mb-1">Deal Value</div>
-                        <div className="font-mono text-2xl font-extrabold text-text-primary">
+                        <div className="font-mono text-2xl font-extrabold text-text-primary mb-2">
                           ${(selected.quotation?.total || 0).toLocaleString()}
                         </div>
+                        <Link href={`/approvals/${selected.id}`}>
+                          <Button variant="outline" className="h-7 px-3 text-[10px] uppercase tracking-widest font-bold">
+                            Full View <ArrowUpRight className="w-3 h-3 ml-1" />
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -258,7 +263,8 @@ export default function ApprovalsPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border/40">
-                              {selected.quotation.lines.map((line: {product_name: string; discount_pct: number; line_total: number; margin_pct: number}, i: number) => (
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                              {selected.quotation.lines.map((line: any, i: number) => (
                                 <tr key={i} className="hover:bg-surface/50 transition-colors">
                                   <td className="px-4 py-3 font-medium text-text-primary truncate max-w-[200px]">{line.product_name}</td>
                                   <td className="px-4 py-3 text-right font-mono text-xs">

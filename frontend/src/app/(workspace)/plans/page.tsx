@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
+import Link from "next/link"
 import {
   apiListPlans,
   apiCreatePlan,
@@ -148,6 +149,9 @@ export default function PlansPage() {
             </div>
 
             <div className="flex items-center justify-end gap-2">
+              <Link href={`/plans/${p.id}`}>
+                <Button variant="ghost" className="h-7 px-2.5 text-xs">Details</Button>
+              </Link>
               <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEdit(p)}>Edit</Button>
               <Button variant="ghost" className="h-7 px-2.5 text-xs text-danger hover:text-danger" onClick={() => handleDelete(p.id, p.name)}>Delete</Button>
             </div>

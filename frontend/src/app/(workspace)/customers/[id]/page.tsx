@@ -1,6 +1,5 @@
 "use client"
-import React, { useState } from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
+import React, { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,24 +7,53 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { apiGetCustomer, apiUpdateCustomer, CustomerResponse, Tier } from "@/lib/api/customers"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function CustomerDetailPage() {
   const { id } = useParams()
   const router = useRouter()
-  const store = useDataStore()
   const { toast } = useToast()
   
-  const customer = store.customers.find(c => c.id === id)
-  const [formData, setFormData] = useState(customer || null)
+  const [customer, setCustomer] = useState<CustomerResponse | null>(null)
+  const [formData, setFormData] = useState<Partial<CustomerResponse>>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
-  if (!customer || !formData) {
+  useEffect(() => {
+    if (typeof id !== "string") return
+    apiGetCustomer(id)
+      .then((data) => {
+        setCustomer(data)
+        setFormData(data)
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  if (loading) return <div className="p-8"><Skeleton className="h-48 w-full" /></div>
+  if (error || !customer) {
     return <div className="p-8">Customer not found. <Link href="/customers" className="text-accent">Go back</Link></div>
   }
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    store.updateCustomer(customer.id, formData)
-    toast({ title: "Customer Updated", description: "Changes saved successfully.", type: "success" })
+    if (typeof id !== "string") return
+    try {
+      const updated = await apiUpdateCustomer(id, {
+        company_name: formData.company_name,
+        tier: formData.tier,
+        currency: formData.currency,
+        billing_address: formData.billing_address,
+        tax_id: formData.tax_id
+      })
+      setCustomer(updated)
+      setFormData(updated)
+      toast({ title: "Customer Updated", description: "Changes saved successfully.", type: "success" })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update"
+      toast({ title: "Error", description: msg, type: "error" })
+    }
   }
 
   return (
@@ -35,9 +63,11 @@ export default function CustomerDetailPage() {
           <Button variant="ghost" onClick={() => router.push("/customers")} className="px-2">&larr; Back</Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-              {formData.name}
+              {formData.company_name}
             </h1>
-            <p className="text-sm text-text-secondary mt-1">{formData.industry} Sector</p>
+            <p className="text-sm text-text-secondary mt-1">
+              Tier: <span className="capitalize">{formData.tier}</span>
+            </p>
           </div>
         </div>
         <Button onClick={handleSave}>Save Changes</Button>
@@ -51,31 +81,35 @@ export default function CustomerDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">Company Name</label>
-                  <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                  <Input value={formData.company_name || ""} onChange={e => setFormData({...formData, company_name: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Industry</label>
-                  <Input value={formData.industry} onChange={e => setFormData({...formData, industry: e.target.value})} />
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Currency</label>
+                  <Input value={formData.currency || ""} onChange={e => setFormData({...formData, currency: e.target.value})} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">Tier</label>
                   <select
-                    value={formData.tier}
-                    onChange={e => setFormData({...formData, tier: e.target.value as "Bronze" | "Silver" | "Gold" | "Platinum"}) }
+                    value={formData.tier || "bronze"}
+                    onChange={e => setFormData({...formData, tier: e.target.value as Tier}) }
                     className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm focus:border-accent outline-none"
                   >
-                    <option value="Bronze">Bronze</option>
-                    <option value="Silver">Silver</option>
-                    <option value="Gold">Gold</option>
-                    <option value="Platinum">Platinum</option>
+                    <option value="bronze">Bronze</option>
+                    <option value="silver">Silver</option>
+                    <option value="gold">Gold</option>
+                    <option value="platinum">Platinum</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1">Account Manager ID</label>
-                  <Input value={formData.accountManagerId} onChange={e => setFormData({...formData, accountManagerId: e.target.value})} />
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Tax ID</label>
+                  <Input value={formData.tax_id || ""} onChange={e => setFormData({...formData, tax_id: e.target.value})} />
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Billing Address</label>
+                <Input value={formData.billing_address || ""} onChange={e => setFormData({...formData, billing_address: e.target.value})} />
               </div>
             </form>
           </Card>
@@ -95,11 +129,11 @@ export default function CustomerDetailPage() {
             <div className="space-y-4">
               <div>
                 <div className="text-xs text-text-secondary">Current Tier</div>
-                <Badge className="mt-1" variant={formData.tier === 'Platinum' || formData.tier === 'Gold' ? 'default' : 'secondary'}>{formData.tier}</Badge>
+                <Badge className="mt-1 capitalize" variant={formData.tier === 'platinum' || formData.tier === 'gold' ? 'default' : 'secondary'}>{formData.tier}</Badge>
               </div>
               <div>
-                <div className="text-xs text-text-secondary">Lifetime Value</div>
-                <div className="text-lg font-mono font-medium">${(45000).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+                <div className="text-xs text-text-secondary">Customer Since</div>
+                <div className="text-sm font-medium">{new Date(customer.created_at).toLocaleDateString()}</div>
               </div>
             </div>
           </Card>

@@ -5,18 +5,14 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { FormDrawer } from "@/components/ui/form-drawer"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
 import { Plus, Filter } from "lucide-react"
 import {
   apiListQuotations,
-  apiCreateQuotation,
   type QuotationResponse,
   type QuotationStatus,
 } from "@/lib/api/quotations"
-import { apiListCustomers, type CustomerResponse } from "@/lib/api/customers"
 
 const STATUS_LABELS: Record<QuotationStatus, string> = {
   draft: "Draft",
@@ -59,10 +55,6 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<QuotationStatus | "">("")
   const [page, setPage] = useState(1)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [customers, setCustomers] = useState<CustomerResponse[]>([])
-  const [newQ, setNewQ] = useState({ customer_id: "", notes: "", promised_date: "" })
-  const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -87,35 +79,6 @@ export default function PipelinePage() {
     load()
   }, [load])
 
-  const openCreate = async () => {
-    const cRes = await apiListCustomers({ size: 100 }).catch(() => null)
-    setCustomers(cRes?.items || [])
-    setNewQ({ customer_id: "", notes: "", promised_date: "" })
-    setDrawerOpen(true)
-  }
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newQ.customer_id) {
-      toast({ title: "Validation", description: "Select a customer", type: "error" })
-      return
-    }
-    setSaving(true)
-    try {
-      await apiCreateQuotation({
-        customer_id: newQ.customer_id,
-        notes: newQ.notes || undefined,
-        promised_date: newQ.promised_date || undefined,
-      })
-      toast({ title: "Quotation Created", description: "New deal added to pipeline." })
-      setDrawerOpen(false)
-      load()
-    } catch {
-      toast({ title: "Error", description: "Failed to create", type: "error" })
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const byStatus = ALL_STATUSES.reduce((acc, s) => {
     acc[s] = quotations.filter((q) => q.status === s)
@@ -140,9 +103,11 @@ export default function PipelinePage() {
             <span className="text-xs font-heading font-bold text-text-secondary uppercase tracking-wider mr-2">Total Deals:</span>
             <span className="font-mono text-sm font-bold text-accent">{loading ? <Skeleton className="h-4 w-6 inline-block" /> : total}</span>
           </div>
-          <Button onClick={openCreate} className="font-heading font-bold shadow-md h-10">
-            <Plus className="w-4 h-4 mr-2" /> New Deal
-          </Button>
+          <Link href="/quotations/new">
+            <Button className="font-heading font-bold shadow-md h-10">
+              <Plus className="w-4 h-4 mr-2" /> New Deal
+            </Button>
+          </Link>
         </div>
       </motion.div>
 
@@ -324,55 +289,7 @@ export default function PipelinePage() {
         )}
       </AnimatePresence>
 
-      <FormDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title="Create New Deal"
-        subtitle="Start a new quotation flow"
-        footerActions={
-          <>
-            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={saving} className="font-bold">
-              {saving ? "Creating..." : "Create Deal"}
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleCreate} className="space-y-5 mt-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Customer <span className="text-accent">*</span></label>
-            <select
-              value={newQ.customer_id}
-              onChange={(e) => setNewQ({ ...newQ, customer_id: e.target.value })}
-              className="w-full h-11 rounded-lg border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all shadow-sm"
-              required
-            >
-              <option value="">Select a customer...</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.company_name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Notes</label>
-            <Input
-              value={newQ.notes}
-              onChange={(e) => setNewQ({ ...newQ, notes: e.target.value })}
-              placeholder="Deal notes or special conditions..."
-              className="h-11 bg-surface shadow-sm text-sm"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Promised Date</label>
-            <Input
-              type="date"
-              value={newQ.promised_date}
-              onChange={(e) => setNewQ({ ...newQ, promised_date: e.target.value })}
-              className="h-11 bg-surface shadow-sm text-sm"
-            />
-          </div>
-        </form>
-      </FormDrawer>
+
     </motion.div>
   )
 }
