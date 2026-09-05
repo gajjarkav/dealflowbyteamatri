@@ -20,14 +20,16 @@ def register_exception_handlers(app: FastAPI):
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        logger.warning(f"Validation Error: {exc.errors()} | URL: {request.url}")
+        from fastapi.encoders import jsonable_encoder
+        errors = jsonable_encoder(exc.errors())
+        logger.warning(f"Validation Error: {errors} | URL: {request.url}")
         return JSONResponse(
             status_code=422,
             content={
                 "error": True,
                 "error_code": "VALIDATION_ERROR",
                 "message": "Invalid request payload",
-                "details": exc.errors()
+                "details": errors
             }
         )
     
