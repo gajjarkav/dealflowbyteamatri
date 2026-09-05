@@ -1,10 +1,13 @@
 "use client"
 import React, { useState, useEffect, useCallback } from "react"
+import { motion } from "framer-motion"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
+import { Users, Plus, Edit2, ShieldAlert, Mail, Lock, Phone, UserCheck, Shield } from "lucide-react"
 import {
   apiListUsers,
   apiCreateUser,
@@ -23,14 +26,24 @@ const ROLE_LABELS: Record<Role, string> = {
 }
 
 const ROLE_COLORS: Record<Role, string> = {
-  admin: "border-purple-500/50 text-purple-600",
-  sales_manager: "border-blue-500/50 text-blue-600",
-  sales_rep: "border-emerald-500/50 text-emerald-600",
-  finance: "border-amber-500/50 text-amber-600",
-  customer: "border-border text-text-secondary",
+  admin: "border-purple-500/30 text-purple-600 bg-purple-500/10",
+  sales_manager: "border-blue-500/30 text-blue-600 bg-blue-500/10",
+  sales_rep: "border-emerald-500/30 text-emerald-600 bg-emerald-500/10",
+  finance: "border-amber-500/30 text-amber-600 bg-amber-500/10",
+  customer: "border-border text-text-secondary bg-surface-hover",
 }
 
 const DEFAULT_FORM = { full_name: "", email: "", password: "", mobile_number: "", role: "sales_rep" as Role }
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0 }
+}
 
 export default function UsersPage() {
   const { toast } = useToast()
@@ -73,10 +86,7 @@ export default function UsersPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.full_name || !formData.email) {
-      toast({ title: "Name and email required", type: "error" })
-      return
-    }
+    if (!formData.full_name || !formData.email) return
     setSaving(true)
     try {
       if (editingId) {
@@ -98,9 +108,8 @@ export default function UsersPage() {
       }
       setDrawerOpen(false)
       load()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Save failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Save failed", type: "error" })
     } finally {
       setSaving(false)
     }
@@ -112,122 +121,228 @@ export default function UsersPage() {
       await apiDeactivateUser(userId)
       toast({ title: "User Deactivated" })
       load()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Failed", type: "error" })
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-[1200px] mx-auto pb-12">
+      
+      {/* Header */}
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50 pb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">User Management</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Manage internal team members, roles, and access controls.
+          <h1 className="text-3xl font-heading font-extrabold text-text-primary tracking-tight">
+            User Management
+          </h1>
+          <p className="text-sm text-text-secondary mt-1 font-medium">
+            Manage internal team members, roles, and platform access controls.
           </p>
         </div>
-        <Button onClick={openCreate}>+ Invite User</Button>
-      </div>
+        <div className="flex items-center gap-3">
+          <Button onClick={openCreate} className="font-heading font-bold shadow-md h-10">
+            <Plus className="w-4 h-4 mr-2" /> Invite Member
+          </Button>
+        </div>
+      </motion.div>
 
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
-            <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Verified</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/60">
-            {loading ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-text-muted">Loading…</td></tr>
-            ) : users.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-text-muted">No users found.</td></tr>
-            ) : users.map((u) => (
-              <tr key={u.id} className="hover:bg-surface/60">
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-text-primary">{u.full_name}</div>
-                  {u.mobile_number && <div className="text-xs text-text-muted">{u.mobile_number}</div>}
-                </td>
-                <td className="px-4 py-3 text-text-secondary text-xs">{u.email}</td>
-                <td className="px-4 py-3">
-                  <Badge variant="secondary" className={`font-mono text-xs ${ROLE_COLORS[u.role]}`}>
-                    {ROLE_LABELS[u.role]}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium ${u.is_email_verified ? "text-emerald-600" : "text-amber-600"}`}>
-                    {u.is_email_verified ? "✓ Verified" : "Pending"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge variant={u.is_active ? "default" : "secondary"} className="text-xs">
-                    {u.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEdit(u)}>Edit</Button>
-                    {u.is_active && !u.is_system && (
-                      <Button variant="ghost" className="h-7 px-2.5 text-xs text-danger hover:text-danger" onClick={() => handleDeactivate(u.id, u.full_name)}>Deactivate</Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* KPI Cards */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="premium-card p-5 bg-surface/50 border border-border flex flex-col justify-between">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-accent-soft/20 border border-accent/20 flex items-center justify-center">
+              <Users className="w-4 h-4 text-accent" />
+            </div>
+            <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest">Total Active</div>
+          </div>
+          <div className="text-3xl font-mono font-extrabold text-text-primary">{loading ? "..." : users.filter(u => u.is_active).length}</div>
+        </Card>
+        
+        <Card className="premium-card p-5 bg-surface/50 border border-border flex flex-col justify-between">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <UserCheck className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest">Verified Emails</div>
+          </div>
+          <div className="text-3xl font-mono font-extrabold text-text-primary">{loading ? "..." : users.filter(u => u.is_email_verified).length}</div>
+        </Card>
+
+        <Card className="premium-card p-5 bg-surface/50 border border-border flex flex-col justify-between">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+              <Shield className="w-4 h-4 text-purple-600" />
+            </div>
+            <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest">Admins</div>
+          </div>
+          <div className="text-3xl font-mono font-extrabold text-text-primary">{loading ? "..." : users.filter(u => u.role === 'admin').length}</div>
+        </Card>
+
+        <Card className="premium-card p-5 bg-surface/50 border border-border flex flex-col justify-between">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <ShieldAlert className="w-4 h-4 text-amber-600" />
+            </div>
+            <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest">Inactive</div>
+          </div>
+          <div className="text-3xl font-mono font-extrabold text-text-primary">{loading ? "..." : users.filter(u => !u.is_active).length}</div>
+        </Card>
+      </motion.div>
+
+      {/* Table */}
+      <motion.div variants={itemVariants}>
+        <Card className="premium-card overflow-hidden border-border bg-surface">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full text-sm text-left whitespace-nowrap">
+              <thead className="bg-surface-hover/80 border-b border-border">
+                <tr className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-wider">
+                  <th className="px-6 py-4">Team Member</th>
+                  <th className="px-6 py-4">Contact</th>
+                  <th className="px-6 py-4">Platform Role</th>
+                  <th className="px-6 py-4">Verification</th>
+                  <th className="px-6 py-4 text-center">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {loading ? (
+                  <tr><td colSpan={6} className="px-6 py-12 text-center text-text-muted font-medium">Loading roster...</td></tr>
+                ) : users.length === 0 ? (
+                  <tr><td colSpan={6} className="px-6 py-12 text-center text-text-muted font-medium">No users found.</td></tr>
+                ) : users.map((u) => (
+                  <tr key={u.id} className="interactive-row bg-surface">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-xs font-bold text-accent uppercase">
+                          {u.full_name.slice(0,2)}
+                        </div>
+                        <div>
+                          <div className="font-bold text-text-primary">{u.full_name}</div>
+                          {u.is_system && <Badge variant="secondary" className="text-[9px] uppercase tracking-widest bg-amber-50 text-amber-600 border-amber-200 mt-1">System Account</Badge>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1 text-xs text-text-secondary font-medium">
+                        <div className="flex items-center gap-2"><Mail className="w-3 h-3 text-text-muted" /> {u.email}</div>
+                        {u.mobile_number && <div className="flex items-center gap-2"><Phone className="w-3 h-3 text-text-muted" /> {u.mobile_number}</div>}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="secondary" className={`font-mono text-[10px] uppercase tracking-widest px-2.5 py-1 ${ROLE_COLORS[u.role]}`}>
+                        {ROLE_LABELS[u.role]}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${u.is_email_verified ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
+                        {u.is_email_verified ? "✓ Verified" : "Pending"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <Badge variant={u.is_active ? "default" : "secondary"} className={`text-[10px] uppercase tracking-wider ${u.is_active ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : ""}`}>
+                        {u.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" className="h-8 w-8 p-0 text-text-muted hover:text-accent hover:bg-accent-soft/30 rounded-full transition-colors" onClick={() => openEdit(u)}>
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        {u.is_active && !u.is_system && (
+                          <Button variant="ghost" className="h-8 w-8 p-0 text-text-muted hover:text-danger hover:bg-danger-soft/50 rounded-full transition-colors" onClick={() => handleDeactivate(u.id, u.full_name)}>
+                            <ShieldAlert className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </motion.div>
 
       <FormDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title={editingId ? "Edit User" : "Invite Team Member"}
-        subtitle="Manage internal user access"
+        title={editingId ? "Edit Team Member" : "Invite Team Member"}
+        subtitle="Manage internal user profile and platform access level."
         footerActions={
           <>
             <Button variant="ghost" onClick={() => setDrawerOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : editingId ? "Save Changes" : "Send Invite"}</Button>
+            <Button onClick={handleSave} disabled={saving} className="font-bold shadow-sm">
+              {saving ? "Saving..." : editingId ? "Save Changes" : "Send Invite"}
+            </Button>
           </>
         }
       >
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Full Name *</label>
-            <Input value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} placeholder="Jane Smith" required />
+        <form onSubmit={handleSave} className="space-y-5 mt-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Full Name <span className="text-accent">*</span></label>
+            <Input 
+              value={formData.full_name} 
+              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} 
+              placeholder="e.g. Jane Smith" 
+              className="h-11 bg-surface shadow-sm"
+              required 
+            />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Work Email *</label>
-            <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="jane@company.com" disabled={!!editingId} required />
-          </div>
-          {!editingId && (
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Temporary Password</label>
-              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="Leave blank to auto-generate" />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Work Email <span className="text-accent">*</span></label>
+              <Input 
+                type="email" 
+                value={formData.email} 
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+                placeholder="jane@company.com" 
+                disabled={!!editingId} 
+                className="h-11 bg-surface shadow-sm disabled:opacity-50"
+                required 
+              />
             </div>
-          )}
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Mobile Number</label>
-            <Input value={formData.mobile_number} onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })} placeholder="+1 555 0000" />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Mobile Number</label>
+              <Input 
+                value={formData.mobile_number} 
+                onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })} 
+                placeholder="+1 555 0123" 
+                className="h-11 bg-surface shadow-sm"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Role</label>
+
+          <div className="space-y-1.5 border-t border-border/50 pt-5 mt-5">
+            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Platform Role</label>
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
-              className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent"
+              className="w-full h-11 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text-primary focus:outline-none focus:border-accent shadow-sm"
             >
               {(["admin", "sales_manager", "sales_rep", "finance"] as Role[]).map((r) => (
                 <option key={r} value={r}>{ROLE_LABELS[r]}</option>
               ))}
             </select>
           </div>
+
+          {!editingId && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Temporary Password</label>
+              <div className="relative">
+                <Input 
+                  type="password" 
+                  value={formData.password} 
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })} 
+                  placeholder="Leave blank to auto-generate" 
+                  className="h-11 bg-surface shadow-sm pl-10"
+                />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              </div>
+            </div>
+          )}
         </form>
       </FormDrawer>
-    </div>
+    </motion.div>
   )
 }

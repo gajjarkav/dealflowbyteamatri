@@ -1,11 +1,13 @@
 "use client"
 import React, { useState, useEffect, useCallback } from "react"
+import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
+import { Percent, Save, Plus, Edit2, Trash2, ShieldCheck, Tag } from "lucide-react"
 import {
   apiListDiscountTiers,
   apiUpsertDiscountTiers,
@@ -20,11 +22,21 @@ import {
 import { apiListCategories, type CategoryResponse } from "@/lib/api/catalog"
 
 const TIER_ORDER: TierEnum[] = ["bronze", "silver", "gold", "platinum"]
-const TIER_COLORS: Record<TierEnum, string> = {
-  bronze: "text-orange-600 border-orange-400",
-  silver: "text-slate-500 border-slate-400",
-  gold: "text-amber-600 border-amber-500",
-  platinum: "text-purple-600 border-purple-500",
+const TIER_STYLES: Record<TierEnum, { bg: string, text: string, border: string, bgSoft: string }> = {
+  bronze: { bg: "bg-orange-500", text: "text-orange-600", border: "border-orange-500", bgSoft: "bg-orange-500/10" },
+  silver: { bg: "bg-slate-400", text: "text-slate-600", border: "border-slate-400", bgSoft: "bg-slate-400/10" },
+  gold: { bg: "bg-amber-500", text: "text-amber-600", border: "border-amber-500", bgSoft: "bg-amber-500/10" },
+  platinum: { bg: "bg-purple-500", text: "text-purple-600", border: "border-purple-500", bgSoft: "bg-purple-500/10" },
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0 }
 }
 
 export default function DiscountTiersPage() {
@@ -76,11 +88,10 @@ export default function DiscountTiersPage() {
         max_discount_pct: editedTiers[tier] ?? 0,
       }))
       await apiUpsertDiscountTiers(data)
-      toast({ title: "Discount Tiers Saved" })
+      toast({ title: "Tiers Saved", description: "Global discount limits updated." })
       load()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Save failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Save failed", type: "error" })
     } finally {
       setSavingTiers(false)
     }
@@ -119,16 +130,15 @@ export default function DiscountTiersPage() {
       }
       setCeilingDrawerOpen(false)
       load()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Save failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Save failed", type: "error" })
     } finally {
       setSavingCeiling(false)
     }
   }
 
   const deleteCeiling = async (id: string) => {
-    if (!confirm("Delete this ceiling?")) return
+    if (!confirm("Delete this category ceiling override?")) return
     try {
       await apiDeleteCeiling(id)
       toast({ title: "Ceiling Deleted" })
@@ -139,152 +149,199 @@ export default function DiscountTiersPage() {
   const catName = (id: string) => categories.find((c) => c.id === id)?.name || id.slice(0, 8)
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">Discount Tiers &amp; Category Ceilings</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          Configure maximum discount percentages per account tier and per product category.
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-[1000px] mx-auto pb-12">
+      
+      {/* Header */}
+      <motion.div variants={itemVariants} className="border-b border-border/50 pb-6">
+        <h1 className="text-3xl font-heading font-extrabold text-text-primary tracking-tight">
+          Discount Ceilings
+        </h1>
+        <p className="text-sm text-text-secondary mt-1 font-medium">
+          Configure maximum allowable discount percentages per account tier and category overrides.
         </p>
-      </div>
+      </motion.div>
 
       {/* Tier Max Discount Editor */}
-      <Card className="p-6 border-border bg-surface space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-text-primary">Global Tier Discount Limits</h2>
-            <p className="text-xs text-text-secondary mt-0.5">The maximum discount any rep may offer to each account tier.</p>
-          </div>
-          <Button onClick={saveTiers} disabled={savingTiers || loading}>
-            {savingTiers ? "Saving…" : "Save Tiers"}
-          </Button>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-6 text-text-muted text-sm">Loading…</div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {TIER_ORDER.map((tier) => (
-              <div key={tier} className={`p-4 rounded-lg border-2 ${TIER_COLORS[tier].split(" ")[1]}`}>
-                <div className={`text-xs font-mono font-bold uppercase mb-3 ${TIER_COLORS[tier].split(" ")[0]}`}>
-                  {tier}
-                </div>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    value={editedTiers[tier] ?? 0}
-                    onChange={(e) => setEditedTiers({ ...editedTiers, [tier]: parseFloat(e.target.value) || 0 })}
-                    className="pr-7"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">%</span>
-                </div>
+      <motion.div variants={itemVariants}>
+        <Card className="premium-card overflow-hidden">
+          <div className="p-6 border-b border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent-soft/20 flex items-center justify-center border border-accent/20">
+                <ShieldCheck className="w-5 h-5 text-accent" />
               </div>
-            ))}
+              <div>
+                <h2 className="text-lg font-heading font-bold text-text-primary">Global Tier Limits</h2>
+                <p className="text-xs font-medium text-text-secondary">Base discount ceiling rules applied universally to each tier.</p>
+              </div>
+            </div>
+            <Button onClick={saveTiers} disabled={savingTiers || loading} className="font-bold shadow-md">
+              <Save className="w-4 h-4 mr-2" />
+              {savingTiers ? "Saving..." : "Save Tier Rules"}
+            </Button>
           </div>
-        )}
-      </Card>
+
+          <div className="p-6 md:p-8">
+            {loading ? (
+              <div className="text-center py-12 text-text-muted font-medium bg-surface/30 rounded-xl border-2 border-dashed border-border/60">Loading tiers...</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {TIER_ORDER.map((tier) => (
+                  <div key={tier} className={`relative p-5 rounded-xl border bg-surface overflow-hidden ${TIER_STYLES[tier].border}`}>
+                    <div className={`absolute top-0 left-0 w-1 h-full ${TIER_STYLES[tier].bg}`} />
+                    <div className="flex items-center gap-2 mb-4">
+                      <Badge variant="secondary" className={`font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 ${TIER_STYLES[tier].bgSoft} ${TIER_STYLES[tier].text}`}>
+                        {tier} Tier
+                      </Badge>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-1.5">Max Discount</label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0} max={100} step={0.5}
+                          value={editedTiers[tier] ?? 0}
+                          onChange={(e) => setEditedTiers({ ...editedTiers, [tier]: parseFloat(e.target.value) || 0 })}
+                          className="pr-8 h-12 text-lg font-mono font-bold shadow-sm"
+                        />
+                        <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+      </motion.div>
 
       {/* Category Ceilings */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-text-primary">Category-Level Discount Ceilings</h2>
-            <p className="text-xs text-text-secondary mt-0.5">Override tier limits for specific product categories.</p>
+      <motion.div variants={itemVariants}>
+        <Card className="premium-card overflow-hidden">
+          <div className="p-6 border-b border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                <Tag className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-heading font-bold text-text-primary">Category Overrides</h2>
+                <p className="text-xs font-medium text-text-secondary">Specific category discount limits that override global rules.</p>
+              </div>
+            </div>
+            <Button variant="secondary" onClick={openCreateCeiling} className="font-bold border border-border shadow-sm bg-background">
+              <Plus className="w-4 h-4 mr-2" /> Add Override
+            </Button>
           </div>
-          <Button variant="secondary" onClick={openCreateCeiling}>+ Add Ceiling</Button>
-        </div>
 
-        {ceilings.length === 0 ? (
-          <div className="text-center py-10 border border-dashed border-border rounded-lg text-text-muted text-sm">
-            No category ceilings configured.
+          <div className="p-0">
+            {ceilings.length === 0 ? (
+              <div className="text-center py-16 bg-surface/30">
+                <p className="text-sm font-medium text-text-muted">No category ceilings configured.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-sm text-left whitespace-nowrap">
+                  <thead className="bg-surface-hover/80 border-b border-border">
+                    <tr className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-wider">
+                      <th className="px-6 py-4">Account Tier</th>
+                      <th className="px-6 py-4">Product Category</th>
+                      <th className="px-6 py-4 text-right">Max Discount Limit</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {ceilings.map((c) => (
+                      <tr key={c.id} className="interactive-row bg-surface">
+                        <td className="px-6 py-4">
+                          <Badge variant="secondary" className={`font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 ${TIER_STYLES[c.tier].bgSoft} ${TIER_STYLES[c.tier].text} ${TIER_STYLES[c.tier].border} border`}>
+                            {c.tier}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 font-medium text-text-primary">{catName(c.category_id)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="font-mono font-extrabold text-accent bg-accent-soft/20 px-2.5 py-1 rounded-md border border-accent/20">
+                            {c.max_discount_pct}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" className="h-8 w-8 p-0 text-text-muted hover:text-accent hover:bg-accent-soft/30 rounded-full transition-colors" onClick={() => openEditCeiling(c)}>
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" className="h-8 w-8 p-0 text-text-muted hover:text-danger hover:bg-danger-soft/50 rounded-full transition-colors" onClick={() => deleteCeiling(c.id)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
-                <tr>
-                  <th className="px-4 py-3">Tier</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Max Discount</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {ceilings.map((c) => (
-                  <tr key={c.id} className="hover:bg-surface/60">
-                    <td className="px-4 py-3">
-                      <Badge variant="secondary" className={`font-mono text-xs ${TIER_COLORS[c.tier]}`}>
-                        {c.tier}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-text-primary font-medium">{catName(c.category_id)}</td>
-                    <td className="px-4 py-3 font-mono font-bold text-accent">{c.max_discount_pct}%</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEditCeiling(c)}>Edit</Button>
-                        <Button variant="ghost" className="h-7 px-2.5 text-xs text-danger hover:text-danger" onClick={() => deleteCeiling(c.id)}>Del</Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </Card>
+      </motion.div>
 
       {/* Ceiling Drawer */}
       <FormDrawer
         isOpen={ceilingDrawerOpen}
         onClose={() => setCeilingDrawerOpen(false)}
-        title={editingCeiling ? "Edit Category Ceiling" : "Add Category Ceiling"}
-        subtitle="Override the global tier limit for a specific product category"
+        title={editingCeiling ? "Edit Category Override" : "Add Category Override"}
+        subtitle="Override the global tier limit for a specific product category."
         footerActions={
           <>
             <Button variant="ghost" onClick={() => setCeilingDrawerOpen(false)}>Cancel</Button>
-            <Button onClick={saveCeiling} disabled={savingCeiling}>{savingCeiling ? "Saving…" : "Save Ceiling"}</Button>
+            <Button onClick={saveCeiling} disabled={savingCeiling} className="font-bold shadow-sm">
+              {savingCeiling ? "Saving..." : "Save Override"}
+            </Button>
           </>
         }
       >
-        <form onSubmit={saveCeiling} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Tier</label>
+        <form onSubmit={saveCeiling} className="space-y-5 mt-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Account Tier <span className="text-accent">*</span></label>
               <select
                 value={ceilingForm.tier}
                 onChange={(e) => setCeilingForm({ ...ceilingForm, tier: e.target.value as TierEnum })}
                 disabled={!!editingCeiling}
-                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+                className="w-full h-11 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text-primary focus:outline-none focus:border-accent disabled:opacity-50 shadow-sm"
               >
-                {TIER_ORDER.map((t) => <option key={t} value={t}>{t}</option>)}
+                {TIER_ORDER.map((t) => <option key={t} value={t} className="capitalize">{t}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Category</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Category <span className="text-accent">*</span></label>
               <select
                 value={ceilingForm.category_id}
                 onChange={(e) => setCeilingForm({ ...ceilingForm, category_id: e.target.value })}
                 disabled={!!editingCeiling}
                 required
-                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+                className="w-full h-11 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-text-primary focus:outline-none focus:border-accent disabled:opacity-50 shadow-sm"
               >
-                <option value="">Select…</option>
+                <option value="">Select Category...</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Max Discount % for this Category</label>
-            <Input
-              type="number" min={0} max={100} step={0.5}
-              value={ceilingForm.max_discount_pct}
-              onChange={(e) => setCeilingForm({ ...ceilingForm, max_discount_pct: parseFloat(e.target.value) || 0 })}
-            />
+          
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Max Discount % Limit <span className="text-accent">*</span></label>
+            <div className="relative">
+              <Input
+                type="number" min={0} max={100} step={0.5}
+                value={ceilingForm.max_discount_pct}
+                onChange={(e) => setCeilingForm({ ...ceilingForm, max_discount_pct: parseFloat(e.target.value) || 0 })}
+                className="h-11 bg-surface shadow-sm font-mono text-lg pr-10"
+              />
+              <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            </div>
+            <p className="text-[10px] font-medium text-text-muted mt-1">
+              Any discount exceeding this percentage on items in this category will trigger an approval workflow.
+            </p>
           </div>
         </form>
       </FormDrawer>
-    </div>
+    </motion.div>
   )
 }

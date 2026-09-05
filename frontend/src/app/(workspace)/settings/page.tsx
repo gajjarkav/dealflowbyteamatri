@@ -1,12 +1,25 @@
 "use client"
 import React, { useState, useEffect, useCallback } from "react"
+import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
+import { ShieldCheck, Lock, Sliders, User as UserIcon, Save, KeyRound, AlertCircle } from "lucide-react"
 import { apiListSettings, apiUpdateSetting, type AppSettingResponse } from "@/lib/api/discount"
 import { apiChangePassword } from "@/lib/api/users"
 import { useCurrentUser } from "@/lib/auth/context"
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0 }
+}
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -49,11 +62,10 @@ export default function SettingsPage() {
             : Promise.resolve()
         )
       )
-      toast({ title: "Settings Saved" })
+      toast({ title: "Settings Saved", description: "System configuration updated successfully." })
       load()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Save failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Save failed", type: "error" })
     } finally {
       setSavingSettings(false)
     }
@@ -72,122 +84,196 @@ export default function SettingsPage() {
     setSavingPwd(true)
     try {
       await apiChangePassword(pwdForm.old_password, pwdForm.new_password)
-      toast({ title: "Password Changed" })
+      toast({ title: "Password Changed", description: "Your password has been successfully updated." })
       setPwdForm({ old_password: "", new_password: "", confirm: "" })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Change failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Change failed", type: "error" })
     } finally {
       setSavingPwd(false)
     }
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">Platform Settings</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          System-wide configuration, security, and user preferences.
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-[1000px] mx-auto pb-12">
+      
+      {/* Header */}
+      <motion.div variants={itemVariants} className="border-b border-border/50 pb-6">
+        <h1 className="text-3xl font-heading font-extrabold text-text-primary tracking-tight">
+          Platform Settings
+        </h1>
+        <p className="text-sm text-text-secondary mt-1 font-medium">
+          System-wide configuration, security options, and user preferences.
         </p>
-      </div>
+      </motion.div>
 
       {/* My Profile */}
-      <Card className="p-6 border-border bg-surface space-y-4">
-        <h2 className="text-base font-semibold text-text-primary">My Profile</h2>
-        {user && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-            <div>
-              <div className="text-xs text-text-secondary mb-1">Full Name</div>
-              <div className="font-medium text-text-primary">{user.full_name}</div>
+      <motion.div variants={itemVariants}>
+        <Card className="premium-card overflow-hidden">
+          <div className="p-6 border-b border-border bg-surface flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+              <UserIcon className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="text-xs text-text-secondary mb-1">Email</div>
-              <div className="font-medium text-text-primary">{user.email}</div>
-            </div>
-            <div>
-              <div className="text-xs text-text-secondary mb-1">Role</div>
-              <div className="font-medium text-text-primary capitalize">{user.role.replace(/_/g, " ")}</div>
+              <h2 className="text-lg font-heading font-bold text-text-primary">My Profile</h2>
+              <p className="text-xs font-medium text-text-secondary">Your personal account details</p>
             </div>
           </div>
-        )}
-      </Card>
+          
+          <div className="p-6 md:p-8">
+            {user ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="bg-background p-4 rounded-xl border border-border">
+                  <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest mb-1">Full Name</div>
+                  <div className="font-bold text-text-primary text-base">{user.full_name}</div>
+                </div>
+                <div className="bg-background p-4 rounded-xl border border-border">
+                  <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest mb-1">Email Address</div>
+                  <div className="font-bold text-text-primary text-base truncate">{user.email}</div>
+                </div>
+                <div className="bg-background p-4 rounded-xl border border-border">
+                  <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest mb-1">Account Role</div>
+                  <div>
+                    <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-200">
+                      {user.role.replace(/_/g, " ")}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-text-muted text-sm font-medium">Loading profile...</div>
+            )}
+          </div>
+        </Card>
+      </motion.div>
 
       {/* Change Password */}
-      <Card className="p-6 border-border bg-surface space-y-4">
-        <h2 className="text-base font-semibold text-text-primary">Change Password</h2>
-        <form onSubmit={changePassword} className="space-y-4 max-w-md">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Current Password</label>
-            <Input
-              type="password"
-              value={pwdForm.old_password}
-              onChange={(e) => setPwdForm({ ...pwdForm, old_password: e.target.value })}
-              placeholder="••••••••"
-            />
+      <motion.div variants={itemVariants}>
+        <Card className="premium-card overflow-hidden">
+          <div className="p-6 border-b border-border bg-surface flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+              <KeyRound className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-heading font-bold text-text-primary">Change Password</h2>
+              <p className="text-xs font-medium text-text-secondary">Update your account access credentials</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">New Password</label>
-            <Input
-              type="password"
-              value={pwdForm.new_password}
-              onChange={(e) => setPwdForm({ ...pwdForm, new_password: e.target.value })}
-              placeholder="Min. 8 characters"
-            />
+
+          <div className="p-6 md:p-8">
+            <form onSubmit={changePassword} className="max-w-md space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Current Password</label>
+                <div className="relative">
+                  <Input
+                    type="password"
+                    value={pwdForm.old_password}
+                    onChange={(e) => setPwdForm({ ...pwdForm, old_password: e.target.value })}
+                    placeholder="••••••••"
+                    className="h-11 bg-background shadow-sm pl-10"
+                    required
+                  />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">New Password</label>
+                <div className="relative">
+                  <Input
+                    type="password"
+                    value={pwdForm.new_password}
+                    onChange={(e) => setPwdForm({ ...pwdForm, new_password: e.target.value })}
+                    placeholder="Min. 8 characters"
+                    className="h-11 bg-background shadow-sm pl-10"
+                    required
+                    minLength={8}
+                  />
+                  <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Confirm New Password</label>
+                <div className="relative">
+                  <Input
+                    type="password"
+                    value={pwdForm.confirm}
+                    onChange={(e) => setPwdForm({ ...pwdForm, confirm: e.target.value })}
+                    placeholder="••••••••"
+                    className="h-11 bg-background shadow-sm pl-10"
+                    required
+                    minLength={8}
+                  />
+                  <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                </div>
+              </div>
+              <div className="pt-2">
+                <Button type="submit" disabled={savingPwd || !pwdForm.old_password || !pwdForm.new_password} className="font-bold shadow-md w-full sm:w-auto">
+                  {savingPwd ? "Updating..." : "Update Password"}
+                </Button>
+              </div>
+            </form>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Confirm New Password</label>
-            <Input
-              type="password"
-              value={pwdForm.confirm}
-              onChange={(e) => setPwdForm({ ...pwdForm, confirm: e.target.value })}
-              placeholder="••••••••"
-            />
-          </div>
-          <Button type="submit" disabled={savingPwd}>
-            {savingPwd ? "Updating…" : "Change Password"}
-          </Button>
-        </form>
-      </Card>
+        </Card>
+      </motion.div>
 
       {/* App Settings */}
       {(user?.role === "admin") && (
-        <Card className="p-6 border-border bg-surface space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-text-primary">System Configuration</h2>
-              <p className="text-xs text-text-secondary mt-0.5">Global platform settings (Admin only)</p>
+        <motion.div variants={itemVariants}>
+          <Card className="premium-card overflow-hidden">
+            <div className="p-6 border-b border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                  <Sliders className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-heading font-bold text-text-primary">System Configuration</h2>
+                  <p className="text-xs font-medium text-text-secondary">Global platform variables and limits</p>
+                </div>
+              </div>
+              <Button onClick={saveSettings} disabled={savingSettings || loading} variant="secondary" className="font-bold border border-border shadow-sm">
+                <Save className="w-4 h-4 mr-2" />
+                {savingSettings ? "Saving..." : "Save All Settings"}
+              </Button>
             </div>
-            <Button onClick={saveSettings} disabled={savingSettings || loading}>
-              {savingSettings ? "Saving…" : "Save All Settings"}
-            </Button>
-          </div>
 
-          {loading ? (
-            <div className="text-center py-8 text-text-muted text-sm">Loading settings…</div>
-          ) : settings.length === 0 ? (
-            <div className="text-center py-8 text-text-muted text-sm">No configurable settings found.</div>
-          ) : (
-            <div className="space-y-4">
-              {settings.map((s) => (
-                <div key={s.key} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center p-3 border border-border rounded bg-background">
-                  <div>
-                    <div className="font-mono text-xs font-bold text-text-primary">{s.key}</div>
-                    <div className="text-[11px] text-text-muted mt-0.5">
-                      Last updated: {new Date(s.updated_at).toLocaleDateString()}
+            <div className="p-6 md:p-8">
+              {loading ? (
+                <div className="text-center py-12 text-text-muted font-medium bg-surface/30 rounded-xl border border-dashed border-border">Loading settings...</div>
+              ) : settings.length === 0 ? (
+                <div className="text-center py-12 text-text-muted font-medium bg-surface/30 rounded-xl border border-dashed border-border">
+                  No configurable global settings found.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 p-4 mb-6 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <div className="text-sm font-medium">
+                      <strong>Admin Warning:</strong> Changes to these global configuration variables may immediately affect all users and operational limits across the platform.
                     </div>
                   </div>
-                  <div className="sm:col-span-2">
-                    <Input
-                      value={editedSettings[s.key] ?? ""}
-                      onChange={(e) => setEditedSettings({ ...editedSettings, [s.key]: e.target.value })}
-                    />
-                  </div>
+                  
+                  {settings.map((s) => (
+                    <div key={s.key} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start md:items-center p-5 border border-border rounded-xl bg-background hover:border-accent/40 transition-colors">
+                      <div className="md:col-span-1">
+                        <div className="font-mono text-sm font-bold text-text-primary tracking-tight">{s.key}</div>
+                        <div className="text-[10px] text-text-muted mt-1 uppercase tracking-widest font-bold">
+                          Updated: {new Date(s.updated_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <Input
+                          value={editedSettings[s.key] ?? ""}
+                          onChange={(e) => setEditedSettings({ ...editedSettings, [s.key]: e.target.value })}
+                          className="font-mono text-sm shadow-sm h-11 bg-surface focus:bg-background transition-colors"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </Card>
+          </Card>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   )
 }

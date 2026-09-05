@@ -3,189 +3,316 @@ import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useCurrentUser } from "@/lib/auth/context"
-import { Playfair_Display } from 'next/font/google'
-import { cn } from "@/lib/utils"
-
-const playfair = Playfair_Display({ subsets: ['latin'] })
+import { motion, AnimatePresence } from "framer-motion"
+import { ArrowRight, LogIn, UserPlus, ShieldCheck, Zap, TrendingUp, KeyRound, Briefcase } from "lucide-react"
 
 export default function LandingPage() {
-  const [isLogin, setIsLogin] = useState(true)
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login")
   const { login, signup } = useCurrentUser()
   
-  // Login form state
+  // Form states
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginError, setLoginError] = useState("")
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
   
-  // Signup form state
-  const [signupData, setSignupData] = useState({ name: "", email: "", password: "", phone: "" })
+  const [signupData, setSignupData] = useState({ name: "", email: "", password: "", phone: "", company: "" })
   const [signupError, setSignupError] = useState("")
+  const [isSigningUp, setIsSigningUp] = useState(false)
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError("")
-    if (!loginEmail || !/^\S+@\S+\.\S+$/.test(loginEmail)) {
-      setLoginError("Please enter a valid email address.")
+    if (!loginEmail || loginPassword.length < 6) {
+      setLoginError("Invalid email or password too short.")
       return
     }
-    if (loginPassword.length < 6) {
-      setLoginError("Password must be at least 6 characters.")
-      return
-    }
+    setIsLoggingIn(true)
     try {
       await login(loginEmail, loginPassword)
+      // Login automatically pushes to /dashboard if successful in context, or handles 2FA.
     } catch {
-      setLoginError("Failed to sign in. Please try again.")
+      setLoginError("Access denied. Please check your credentials.")
+    } finally {
+      setIsLoggingIn(false)
     }
   }
 
-  const handleSignupSubmit = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setSignupError("")
-    if (!signupData.name) return setSignupError("Name is required.")
+    if (!signupData.name || !signupData.company) return setSignupError("Name and Company are required.")
     if (!/^\S+@\S+\.\S+$/.test(signupData.email)) return setSignupError("Invalid email address.")
     if (signupData.password.length < 6) return setSignupError("Password must be at least 6 characters.")
-    if (!/^\+?[0-9\s\-()]{7,15}$/.test(signupData.phone)) return setSignupError("Invalid phone number format.")
     
+    setIsSigningUp(true)
     try {
       await signup({
         email: signupData.email,
         password: signupData.password,
-        mobile_number: signupData.phone,
+        mobile_number: signupData.phone || "0000000000",
         full_name: signupData.name,
-        company_name: "Default Company"
+        company_name: signupData.company
       })
+      // If success, it goes to OTP screen internally.
     } catch {
-      setSignupError("Registration failed. Please try again.")
+      setSignupError("Registration failed. Email might be in use.")
+    } finally {
+      setIsSigningUp(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Navbar placeholder */}
-      <header className="h-14 border-b border-border flex items-center px-8">
-        <div className="text-xl font-bold tracking-tight">DealFlow<span className="text-accent">360</span></div>
+    <div className="min-h-screen bg-background flex flex-col font-sans selection:bg-accent-soft selection:text-accent">
+      {/* Header */}
+      <header className="h-20 border-b border-border/40 bg-surface/80 backdrop-blur-md sticky top-0 z-50 flex items-center justify-between px-6 lg:px-12">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center shadow-glow">
+            <Zap className="text-white h-4 w-4" />
+          </div>
+          <span className="font-heading font-bold text-xl tracking-tight text-text-primary">
+            DealFlow<span className="text-accent">360</span>
+          </span>
+        </div>
+        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary">
+          <a href="#features" className="hover:text-text-primary transition-colors">Features</a>
+          <a href="#platform" className="hover:text-text-primary transition-colors">Platform</a>
+          <a href="#security" className="hover:text-text-primary transition-colors">Security</a>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" onClick={() => setAuthMode("login")} className="hidden sm:inline-flex font-medium">
+            Sign In
+          </Button>
+          <Button onClick={() => setAuthMode("signup")} className="font-heading font-medium bg-text-primary text-white hover:bg-text-secondary rounded-full px-6">
+            Get Started
+          </Button>
+        </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 py-16">
-        <div className="text-center max-w-4xl mx-auto mb-16">
-          <h1 className={cn("text-3xl md:text-5xl font-bold text-text-primary mb-6 leading-tight", playfair.className)}>
-            DealFlow360 — The Self-Governing Sales Engine
-          </h1>
-          <p className="text-lg text-text-secondary max-w-2xl mx-auto">
-            Quotations to cash. Discounts that route themselves. Stock that splits itself. Customers that negotiate in real time.
-          </p>
-        </div>
-
-        {/* Sliding Auth Panel */}
-        <div className="relative w-full max-w-4xl bg-surface border border-border rounded-md shadow-lg overflow-hidden flex min-h-[500px]">
+      {/* Main Hero & Auth Split */}
+      <main className="flex-1 flex flex-col lg:flex-row">
+        
+        {/* Left Side: Value Proposition */}
+        <div className="flex-1 p-8 lg:p-20 flex flex-col justify-center relative overflow-hidden bg-surface">
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] rounded-full bg-accent-soft/40 blur-3xl opacity-50" />
+            <div className="absolute top-[40%] -right-[20%] w-[60%] h-[60%] rounded-full bg-amber-100/40 blur-3xl opacity-50" />
+          </div>
           
-          {/* Left Background (Sign In prompt) */}
-          <div className="w-full md:w-1/2 p-8 flex flex-col justify-center items-center text-center">
-            <h2 className="text-2xl font-semibold mb-4 text-text-primary">Welcome Back!</h2>
-            <p className="text-sm text-text-secondary mb-8">To keep connected with us please login with your personal info</p>
-            <Button variant="secondary" onClick={() => setIsLogin(true)} className="w-40">Sign In</Button>
-          </div>
-
-          {/* Right Background (Register prompt) */}
-          <div className="hidden md:flex w-1/2 p-8 flex-col justify-center items-center text-center">
-            <h2 className="text-2xl font-semibold mb-4 text-text-primary">Hello, Friend!</h2>
-            <p className="text-sm text-text-secondary mb-8">Enter your personal details and start your journey with us</p>
-            <Button variant="secondary" onClick={() => setIsLogin(false)} className="w-40">Register</Button>
-          </div>
-
-          {/* Sliding Overlay Container */}
-          <div className={cn(
-            "absolute top-0 left-0 h-full w-full md:w-1/2 bg-background border-x border-border flex flex-col justify-center p-8 transition-transform duration-500 ease-in-out",
-            isLogin ? "translate-x-0" : "md:translate-x-full"
-          )}>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="max-w-xl relative z-10"
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-soft/50 text-accent text-xs font-semibold uppercase tracking-wider mb-6 border border-accent/10">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+              </span>
+              Hackathon Edition 2026
+            </div>
             
-            <div className="flex flex-col items-center mb-8">
-              <div className="text-2xl font-bold tracking-tight mb-2">DealFlow<span className="text-accent">360</span></div>
-              <div className="flex gap-4 mt-2">
-                <button onClick={() => setIsLogin(true)} className={cn("text-sm font-medium transition-colors", isLogin ? "text-accent" : "text-text-muted hover:text-text-primary")}>Sign In</button>
-                <button onClick={() => setIsLogin(false)} className={cn("text-sm font-medium transition-colors", !isLogin ? "text-accent" : "text-text-muted hover:text-text-primary")}>Register</button>
+            <h1 className="font-heading text-5xl lg:text-7xl font-extrabold text-text-primary leading-[1.1] tracking-tight mb-6">
+              The Self-Governing <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-amber-600">Sales Engine.</span>
+            </h1>
+            
+            <p className="text-lg text-text-secondary leading-relaxed mb-10 font-medium">
+              Eliminate deal friction. DealFlow360 combines autonomous discount governance, multi-hub inventory routing, and AI-driven upselling into one powerhouse B2B platform.
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-full bg-surface-hover flex items-center justify-center shrink-0 border border-border">
+                  <ShieldCheck className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-text-primary">Smart Governance</h3>
+                  <p className="text-sm text-text-muted mt-1">Automated approval chains based on gross margins.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-full bg-surface-hover flex items-center justify-center shrink-0 border border-border">
+                  <TrendingUp className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-text-primary">Live Inventory</h3>
+                  <p className="text-sm text-text-muted mt-1">Real-time stock ledger across multiple hubs.</p>
+                </div>
               </div>
             </div>
-
-            {isLogin ? (
-              <div className="animate-in fade-in zoom-in-95 duration-300">
-                <h3 className="text-xl font-semibold mb-6 text-center">Sign in to your account</h3>
-                <form className="space-y-4" onSubmit={handleLoginSubmit}>
-                  <Input type="email" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
-                  <Input type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
-                  {loginError && <p className="text-xs text-danger">{loginError}</p>}
-                  <div className="flex justify-end">
-                    <span className="text-xs text-text-secondary hover:text-text-primary cursor-pointer">Forgot your password?</span>
-                  </div>
-                  <Button type="submit" className="w-full mt-4">Sign In</Button>
-                </form>
-                <div className="mt-6 md:hidden text-center text-sm text-text-secondary">
-                  <span className="cursor-pointer hover:text-accent" onClick={() => setIsLogin(false)}>Don&apos;t have an account? Register</span>
-                </div>
-              </div>
-            ) : (
-              <div className="animate-in fade-in zoom-in-95 duration-300">
-                <h3 className="text-xl font-semibold mb-6 text-center">Create an account</h3>
-                <form className="space-y-4" onSubmit={handleSignupSubmit}>
-                  <Input type="text" placeholder="Name" value={signupData.name} onChange={e => setSignupData({...signupData, name: e.target.value})} required />
-                  <Input type="email" placeholder="Email" value={signupData.email} onChange={e => setSignupData({...signupData, email: e.target.value})} required />
-                  <Input type="password" placeholder="Password" value={signupData.password} onChange={e => setSignupData({...signupData, password: e.target.value})} required />
-                  <Input type="tel" placeholder="Phone Number" value={signupData.phone} onChange={e => setSignupData({...signupData, phone: e.target.value})} required />
-                  {signupError && <p className="text-xs text-danger">{signupError}</p>}
-                  <Button type="submit" className="w-full mt-4">Register</Button>
-                </form>
-                <div className="mt-6 md:hidden text-center text-sm text-text-secondary">
-                  <span className="cursor-pointer hover:text-accent" onClick={() => setIsLogin(true)}>Already have an account? Sign In</span>
-                </div>
-              </div>
-            )}
-          </div>
+          </motion.div>
         </div>
 
-        {/* Feature Strips */}
-        <div className="w-full max-w-4xl mt-24 space-y-12">
-          <div className="border-t border-border pt-8 text-center">
-            <h3 className="text-xl font-medium text-text-primary mb-2 max-w-2xl mx-auto">Automated Deal Desk Routing</h3>
-            <p className="text-sm text-text-secondary">Skip the email chain. DealFlow360 automatically loops in the right approvers based on discount thresholds.</p>
-          </div>
-          <div className="border-t border-border pt-8 text-center">
-            <h3 className="text-xl font-medium text-text-primary mb-2 max-w-2xl mx-auto">Real-time Negotiation Portal</h3>
-            <p className="text-sm text-text-secondary">Customers view, accept, or counter-offer directly in a secure portal linked right to your CRM.</p>
-          </div>
-          <div className="border-t border-border pt-8 text-center">
-            <h3 className="text-xl font-medium text-text-primary mb-2 max-w-2xl mx-auto">Instant Inventory Sync</h3>
-            <p className="text-sm text-text-secondary">Odoo integration ensures what you sell is what you have. No more manual stock checks.</p>
-          </div>
+        {/* Right Side: Auth Form */}
+        <div className="w-full lg:w-[480px] shrink-0 bg-background border-l border-border/40 p-8 lg:p-12 flex flex-col justify-center relative">
+          <AnimatePresence mode="wait">
+            {authMode === "login" ? (
+              <motion.div 
+                key="login"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="w-full max-w-sm mx-auto space-y-8"
+              >
+                <div>
+                  <h2 className="font-heading text-3xl font-bold text-text-primary">Welcome Back</h2>
+                  <p className="text-text-secondary mt-2 text-sm">Enter your credentials to access the command center.</p>
+                </div>
+                
+                <form onSubmit={handleLogin} className="space-y-4">
+                  {loginError && (
+                    <div className="p-3 rounded-lg bg-danger-soft text-danger text-sm font-medium border border-danger/20">
+                      {loginError}
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Email Address</label>
+                    <div className="relative">
+                      <Input 
+                        type="email" 
+                        value={loginEmail} 
+                        onChange={(e) => setLoginEmail(e.target.value)} 
+                        placeholder="executive@company.com" 
+                        required 
+                        className="pl-10 h-12 bg-surface text-base"
+                      />
+                      <LogIn className="absolute left-3.5 top-3.5 h-5 w-5 text-text-muted" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Password</label>
+                      <a href="#" className="text-xs font-medium text-accent hover:underline">Forgot?</a>
+                    </div>
+                    <div className="relative">
+                      <Input 
+                        type="password" 
+                        value={loginPassword} 
+                        onChange={(e) => setLoginPassword(e.target.value)} 
+                        placeholder="••••••••" 
+                        required 
+                        className="pl-10 h-12 bg-surface text-base"
+                      />
+                      <KeyRound className="absolute left-3.5 top-3.5 h-5 w-5 text-text-muted" />
+                    </div>
+                  </div>
+                  
+                  <Button type="submit" disabled={isLoggingIn} className="w-full h-12 font-heading font-bold text-base mt-2 shadow-sm">
+                    {isLoggingIn ? "Authenticating..." : "Sign In securely"}
+                    {!isLoggingIn && <ArrowRight className="ml-2 h-4 w-4" />}
+                  </Button>
+                </form>
+                
+                <div className="text-center">
+                  <p className="text-sm text-text-secondary">
+                    Don&apos;t have an account?{" "}
+                    <button onClick={() => setAuthMode("signup")} className="font-bold text-text-primary hover:text-accent transition-colors">
+                      Create one
+                    </button>
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="signup"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="w-full max-w-sm mx-auto space-y-8"
+              >
+                <div>
+                  <h2 className="font-heading text-3xl font-bold text-text-primary">Join DealFlow360</h2>
+                  <p className="text-text-secondary mt-2 text-sm">Deploy the ultimate B2B sales engine for your team.</p>
+                </div>
+                
+                <form onSubmit={handleSignup} className="space-y-4">
+                  {signupError && (
+                    <div className="p-3 rounded-lg bg-danger-soft text-danger text-sm font-medium border border-danger/20">
+                      {signupError}
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Full Name</label>
+                      <Input 
+                        value={signupData.name} 
+                        onChange={(e) => setSignupData({...signupData, name: e.target.value})} 
+                        placeholder="John Doe" 
+                        required 
+                        className="h-11 bg-surface text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Company</label>
+                      <Input 
+                        value={signupData.company} 
+                        onChange={(e) => setSignupData({...signupData, company: e.target.value})} 
+                        placeholder="Acme Corp" 
+                        required 
+                        className="h-11 bg-surface text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Work Email</label>
+                    <Input 
+                      type="email" 
+                      value={signupData.email} 
+                      onChange={(e) => setSignupData({...signupData, email: e.target.value})} 
+                      placeholder="john@acme.com" 
+                      required 
+                      className="h-11 bg-surface text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Password</label>
+                    <Input 
+                      type="password" 
+                      value={signupData.password} 
+                      onChange={(e) => setSignupData({...signupData, password: e.target.value})} 
+                      placeholder="Min 6 characters" 
+                      required 
+                      className="h-11 bg-surface text-sm"
+                    />
+                  </div>
+                  
+                  <Button type="submit" disabled={isSigningUp} className="w-full h-12 font-heading font-bold text-base mt-2 shadow-sm">
+                    {isSigningUp ? "Creating Space..." : "Create Workspace"}
+                    {!isSigningUp && <UserPlus className="ml-2 h-4 w-4" />}
+                  </Button>
+                </form>
+                
+                <div className="text-center">
+                  <p className="text-sm text-text-secondary">
+                    Already have an account?{" "}
+                    <button onClick={() => setAuthMode("login")} className="font-bold text-text-primary hover:text-accent transition-colors">
+                      Sign In
+                    </button>
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
 
-      <footer className="border-t border-border bg-surface py-12 px-8">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="col-span-1 md:col-span-2">
-            <div className="text-xl font-bold tracking-tight mb-4">DealFlow<span className="text-accent">360</span></div>
-            <p className="text-sm text-text-secondary max-w-sm mb-6">
-              The self-governing sales engine for high-velocity B2B teams. Streamline approvals, stock checks, and negotiations.
-            </p>
-            <p className="text-xs text-text-muted">Built for Odoo Hackathon 2026</p>
-          </div>
-          <div>
-            <h4 className="font-semibold text-text-primary mb-4">Product</h4>
-            <ul className="space-y-2 text-sm text-text-secondary">
-              <li><a href="#" className="hover:text-accent transition-colors">Features</a></li>
-              <li><a href="#" className="hover:text-accent transition-colors">Integrations</a></li>
-              <li><a href="#" className="hover:text-accent transition-colors">Pricing</a></li>
-              <li><a href="#" className="hover:text-accent transition-colors">Changelog</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-semibold text-text-primary mb-4">Legal</h4>
-            <ul className="space-y-2 text-sm text-text-secondary">
-              <li><a href="#" className="hover:text-accent transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-accent transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-accent transition-colors">Cookie Policy</a></li>
-            </ul>
+      {/* Footer */}
+      <footer className="border-t border-border bg-surface py-6 px-6 lg:px-12 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="text-sm text-text-muted font-medium">
+          &copy; {new Date().getFullYear()} DealFlow360 by Team Atri. All rights reserved.
+        </div>
+        <div className="flex items-center gap-4 text-xs font-medium text-text-secondary">
+          <a href="#" className="hover:text-text-primary transition-colors">Privacy Policy</a>
+          <a href="#" className="hover:text-text-primary transition-colors">Terms of Service</a>
+          <div className="flex items-center gap-1 text-accent ml-2">
+            <Briefcase className="h-3 w-3" />
+            Odoo Hackathon Entry
           </div>
         </div>
       </footer>

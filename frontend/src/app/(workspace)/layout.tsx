@@ -3,14 +3,14 @@ import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useCurrentUser } from "@/lib/auth/context"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion"
+import { LogOut, Settings, LayoutDashboard, FileText, CheckSquare, PackageOpen, CreditCard, Activity, Menu, X, Zap } from "lucide-react"
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { logout, user, isLoading } = useCurrentUser()
-  const [backendMenuOpen, setBackendMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Auth guard: redirect to login if not authenticated
   useEffect(() => {
@@ -19,7 +19,23 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     }
   }, [isLoading, user, router])
 
-  // Map real backend roles to permission sets
+  // Close mobile menu on route change
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMobileMenuOpen(false)
+  }, [pathname])
+
+  if (isLoading || !user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <div className="h-10 w-10 rounded-xl bg-accent-soft flex items-center justify-center animate-pulse mb-4">
+          <Zap className="h-5 w-5 text-accent" />
+        </div>
+        <div className="text-text-muted text-sm font-mono tracking-widest uppercase">Initializing Command Center...</div>
+      </div>
+    )
+  }
+
   const roleAlias = user?.role === "admin" ? "Admin"
     : user?.role === "sales_manager" ? "Manager"
     : user?.role === "finance" ? "Finance"
@@ -28,23 +44,21 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
   const currentRole = roleAlias
 
-  // Matrix of role permissions for workspace navigation
   const canAccess = (item: string) => {
     switch (item) {
       case "dashboard":
       case "quotations":
       case "pipeline":
-        return true // All roles can access
+      case "customers":
+        return true 
       case "approvals":
+      case "reports":
         return ["Admin", "Manager", "Finance"].includes(currentRole)
       case "fulfillment":
-        return ["Admin", "Finance", "Rep"].includes(currentRole)
       case "billing":
         return ["Admin", "Finance", "Rep"].includes(currentRole)
       case "deal-health":
         return ["Admin", "Manager", "Rep"].includes(currentRole)
-      case "reports":
-        return ["Admin", "Manager", "Finance"].includes(currentRole)
       case "users":
       case "settings":
       case "plans":
@@ -57,180 +71,150 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         return ["Admin", "Manager"].includes(currentRole)
       case "warehouses":
         return ["Admin", "Finance"].includes(currentRole)
-      case "customers":
-        return true // All roles
       default:
         return true
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-text-muted text-sm font-mono">Loading DealFlow360…</div>
-      </div>
-    )
-  }
+  const mainLinks = [
+    { href: "/dashboard", label: "Dashboard", id: "dashboard", icon: <LayoutDashboard size={16} /> },
+    { href: "/pipeline", label: "Pipeline", id: "pipeline", icon: <FileText size={16} /> },
+    { href: "/approvals", label: "Approvals", id: "approvals", icon: <CheckSquare size={16} /> },
+    { href: "/fulfillment", label: "Fulfillment", id: "fulfillment", icon: <PackageOpen size={16} /> },
+    { href: "/billing", label: "Billing", id: "billing", icon: <CreditCard size={16} /> },
+    { href: "/customers", label: "Customers", id: "customers", icon: <Activity size={16} /> },
+  ].filter(l => canAccess(l.id))
 
-  if (!user) return null
-
-  const navLinks = [
-    { href: "/dashboard", label: "Dashboard", id: "dashboard" },
-    { href: "/pipeline", label: "Quotations", id: "quotations" },
-    { href: "/approvals", label: "Approvals", id: "approvals" },
-    { href: "/fulfillment", label: "Fulfillment", id: "fulfillment" },
-    { href: "/billing", label: "Billing", id: "billing" },
-    { href: "/deal-health", label: "Deal Health", id: "deal-health" },
-    { href: "/reports", label: "Reports", id: "reports" }
-  ].filter((item) => canAccess(item.id))
-
-  const backendLinks = [
-    { href: "/products", label: "Products & Catalog", id: "products" },
+  const adminLinks = [
+    { href: "/products", label: "Catalog", id: "products" },
     { href: "/pricelists", label: "Price Lists", id: "pricelists" },
-    { href: "/discount-tiers", label: "Discount Tiers & Ceilings", id: "discount-tiers" },
-    { href: "/approval-rules", label: "Approval Rules", id: "approval-rules" },
-    { href: "/warehouses", label: "Warehouses & Stock", id: "warehouses" },
-    { href: "/customers", label: "Customers", id: "customers" },
-    { href: "/plans", label: "Subscription Plans", id: "plans" },
-    { href: "/upsell-rules", label: "Upsell Rules", id: "upsell-rules" },
-    { href: "/users", label: "Users Management", id: "users" },
-    { href: "/settings", label: "Settings", id: "settings" }
-  ].filter((item) => canAccess(item.id))
+    { href: "/discount-tiers", label: "Discount Tiers", id: "discount-tiers" },
+    { href: "/approval-rules", label: "Approval Matrix", id: "approval-rules" },
+    { href: "/warehouses", label: "Hubs & Stock", id: "warehouses" },
+    { href: "/users", label: "Access & Users", id: "users" },
+  ].filter(l => canAccess(l.id))
 
   return (
     <div className="min-h-screen bg-background text-text-primary flex flex-col font-sans">
-      {/* Top Navigation Bar */}
-      <header className="h-14 border-b border-border bg-surface sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between">
-        {/* Left: Brand + Nav Links */}
-        <div className="flex items-center gap-6 overflow-x-auto py-1">
-          <Link href="/dashboard" className="flex items-center gap-1 font-bold tracking-tight text-lg shrink-0">
-            <span>DealFlow</span>
-            <span className="text-accent">360</span>
+      
+      {/* Top Navbar */}
+      <header className="h-16 border-b border-border bg-surface/80 backdrop-blur-lg sticky top-0 z-40 px-4 sm:px-8 flex items-center justify-between">
+        
+        {/* Left: Brand & Mobile Toggle */}
+        <div className="flex items-center gap-4">
+          <button 
+            className="lg:hidden p-2 -ml-2 text-text-secondary hover:text-text-primary"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center shadow-glow">
+              <Zap className="text-white h-4 w-4" />
+            </div>
+            <span className="font-heading font-extrabold text-xl tracking-tight hidden sm:block">
+              DealFlow<span className="text-accent">360</span>
+            </span>
           </Link>
-
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href))
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                    isActive
-                      ? "bg-accent/10 text-accent font-semibold"
-                      : "text-text-secondary hover:text-text-primary hover:bg-background"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-
-            {/* Backend Config Dropdown */}
-            {backendLinks.length > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() => setBackendMenuOpen(!backendMenuOpen)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
-                    backendLinks.some((l) => pathname === l.href)
-                      ? "bg-accent/10 text-accent font-semibold"
-                      : "text-text-secondary hover:text-text-primary hover:bg-background"
-                  }`}
-                >
-                  <span>Backend Config</span>
-                  <span className="text-[10px]">&blacktriangledown;</span>
-                </button>
-
-                {backendMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setBackendMenuOpen(false)} />
-                    <div className="absolute left-0 mt-1 w-56 bg-surface border border-border rounded-md shadow-xl py-1 z-50 animate-in fade-in zoom-in-95">
-                      <div className="px-3 py-1.5 text-[11px] font-mono text-text-muted uppercase tracking-wider border-b border-border">
-                        Configuration Modules
-                      </div>
-                      {backendLinks.map((sub) => (
-                        <Link
-                          key={sub.href}
-                          href={sub.href}
-                          onClick={() => setBackendMenuOpen(false)}
-                          className={`block px-3 py-2 text-xs transition-colors ${
-                            pathname === sub.href
-                              ? "bg-accent/10 text-accent font-semibold"
-                              : "text-text-secondary hover:bg-background hover:text-text-primary"
-                          }`}
-                        >
-                          {sub.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </nav>
         </div>
 
-        {/* Right: Actions, Role Switcher, Profile */}
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Live user info badge */}
-          {user && (
-            <div className="hidden sm:flex items-center gap-1.5 bg-background border border-border rounded px-2.5 py-1">
-              <span className="text-[11px] text-text-muted font-mono">{user.full_name}</span>
-              <Badge variant="secondary" className="text-[10px] font-mono border-accent/40 text-accent py-0">
-                {currentRole}
-              </Badge>
-            </div>
-          )}
+        {/* Center: Desktop Main Links */}
+        <nav className="hidden lg:flex items-center gap-1">
+          {mainLinks.map((link) => {
+            const isActive = pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href))
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                  isActive
+                    ? "bg-text-primary text-surface shadow-md"
+                    : "text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+                }`}
+              >
+                {link.icon}
+                <span>{link.label}</span>
+              </Link>
+            )
+          })}
+        </nav>
 
-          {/* Portal Switcher Link */}
-          <Link href="/portal" className="hidden lg:inline-flex">
-            <Badge variant="secondary" className="text-[11px] border-accent/40 text-accent hover:bg-accent/10 cursor-pointer">
-              Portal &rarr;
-            </Badge>
-          </Link>
-
-          {/* Logout */}
-          <Button
-            variant="ghost"
+        {/* Right: User Menu */}
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex flex-col items-end">
+            <span className="text-sm font-bold leading-none text-text-primary">{user.full_name}</span>
+            <span className="text-[10px] font-mono font-bold text-accent uppercase tracking-widest mt-1">{currentRole}</span>
+          </div>
+          
+          <div className="h-10 w-10 rounded-full bg-surface-hover border border-border flex items-center justify-center text-text-primary font-heading font-bold shadow-sm">
+            {user.full_name.charAt(0)}
+          </div>
+          
+          <button
             onClick={async () => { await logout() }}
-            className="h-8 px-2 text-xs text-text-muted hover:text-danger"
+            className="p-2 text-text-muted hover:text-danger hover:bg-danger-soft rounded-full transition-colors"
+            title="Sign Out"
           >
-            Logout
-          </Button>
+            <LogOut size={18} />
+          </button>
         </div>
       </header>
 
-      {/* Mobile Sub-Navigation Bar */}
-      <div className="md:hidden border-b border-border bg-surface px-4 py-2 flex items-center gap-2 overflow-x-auto">
-        {navLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={`px-2.5 py-1 rounded text-xs font-medium shrink-0 ${
-              pathname === link.href ? "bg-accent text-white" : "bg-background text-text-secondary"
-            }`}
-          >
-            {link.label}
-          </Link>
-        ))}
-        {backendLinks.length > 0 && (
-          <Link
-            href="/products"
-            className={`px-2.5 py-1 rounded text-xs font-medium shrink-0 ${
-              pathname.startsWith("/products") || pathname.startsWith("/users")
-                ? "bg-accent text-white"
-                : "bg-background text-text-secondary"
-            }`}
-          >
-            Config
-          </Link>
-        )}
-      </div>
+      {/* Mobile Drawer */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-30 pt-16 bg-surface border-b border-border shadow-2xl flex flex-col">
+          <div className="p-6 flex-1 overflow-y-auto space-y-8">
+            <div>
+              <div className="text-xs font-mono text-text-muted uppercase tracking-widest mb-3">Core Modules</div>
+              <div className="grid gap-2">
+                {mainLinks.map(link => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-3 p-3 rounded-xl font-semibold transition-colors ${
+                      pathname.startsWith(link.href) ? "bg-accent text-white" : "bg-surface-hover text-text-primary"
+                    }`}
+                  >
+                    {link.icon}
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+            
+            {adminLinks.length > 0 && (
+              <div>
+                <div className="text-xs font-mono text-text-muted uppercase tracking-widest mb-3">Admin Config</div>
+                <div className="grid gap-2">
+                  {adminLinks.map(link => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="flex items-center gap-3 p-3 rounded-xl font-medium text-sm bg-background border border-border text-text-secondary hover:text-text-primary"
+                    >
+                      <Settings size={16} className="text-text-muted" />
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-      {/* Main Workspace Canvas */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto animate-in fade-in duration-200">
+      {/* Main Content Area */}
+      <motion.main 
+        key={pathname} // Re-trigger animation on route change
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="flex-1 p-4 sm:p-6 lg:p-10 max-w-[1400px] w-full mx-auto"
+      >
         {children}
-      </main>
+      </motion.main>
+
     </div>
   )
 }

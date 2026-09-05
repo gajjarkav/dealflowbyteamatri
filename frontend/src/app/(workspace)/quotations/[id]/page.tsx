@@ -2,12 +2,15 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { motion, AnimatePresence } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/toast"
+import { ArrowLeft, CheckCircle2, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, TrendingUp, Plus, Trash2 } from "lucide-react"
 import {
   apiGetQuotation,
   apiAddQuotationLine,
@@ -27,21 +30,42 @@ import {
 import { apiListProducts, type ProductResponse } from "@/lib/api/catalog"
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "border-border text-text-secondary",
-  pending_approval: "border-accent text-accent bg-accent/5",
-  approved: "border-blue-500/50 text-blue-600 bg-blue-500/5",
-  revision_requested: "border-amber-500/50 text-amber-600 bg-amber-500/5",
-  under_negotiation: "border-purple-500/50 text-purple-600 bg-purple-500/5",
-  accepted: "border-emerald-500/50 text-emerald-600 bg-emerald-500/5",
-  cancelled: "border-red-400/50 text-red-500 bg-red-500/5",
-  fulfilled: "border-emerald-600 text-emerald-700 bg-emerald-500/10",
+  draft: "border-border text-text-secondary bg-surface",
+  pending_approval: "border-accent/40 text-accent bg-accent-soft/30",
+  approved: "border-blue-500/50 text-blue-600 bg-blue-500/10",
+  revision_requested: "border-amber-500/50 text-amber-600 bg-amber-500/10",
+  under_negotiation: "border-purple-500/50 text-purple-600 bg-purple-500/10",
+  accepted: "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
+  cancelled: "border-red-400/50 text-red-500 bg-red-500/10",
+  fulfilled: "border-emerald-600 text-emerald-700 bg-emerald-500/20",
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  pending_approval: "Pending Approval",
+  approved: "Approved",
+  revision_requested: "Revision Req.",
+  under_negotiation: "Negotiation",
+  accepted: "Accepted",
+  cancelled: "Cancelled",
+  fulfilled: "Fulfilled",
 }
 
 const RISK_COLORS: Record<string, string> = {
-  low: "text-emerald-600",
-  medium: "text-amber-500",
-  high: "text-orange-500",
-  critical: "text-red-600",
+  low: "text-emerald-600 bg-emerald-50",
+  medium: "text-amber-600 bg-amber-50",
+  high: "text-orange-600 bg-orange-50",
+  critical: "text-red-600 bg-red-50",
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0 }
 }
 
 export default function QuotationDetailPage() {
@@ -56,6 +80,7 @@ export default function QuotationDetailPage() {
   const [timeline, setTimeline] = useState<QuotationEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<"lines" | "risk" | "suggestions" | "timeline">("lines")
+  
   const [addLineOpen, setAddLineOpen] = useState(false)
   const [products, setProducts] = useState<ProductResponse[]>([])
   const [newLine, setNewLine] = useState({ product_id: "", qty: 1, discount_pct: 0 })
@@ -98,10 +123,7 @@ export default function QuotationDetailPage() {
 
   const handleAddLine = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newLine.product_id) {
-      toast({ title: "Validation", description: "Select a product", type: "error" })
-      return
-    }
+    if (!newLine.product_id) return
     setSaving(true)
     try {
       const updated = await apiAddQuotationLine(id, {
@@ -112,9 +134,8 @@ export default function QuotationDetailPage() {
       setQuotation(updated)
       setAddLineOpen(false)
       toast({ title: "Line Added" })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to add line"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Failed to add line", type: "error" })
     } finally {
       setSaving(false)
     }
@@ -125,9 +146,8 @@ export default function QuotationDetailPage() {
       const updated = await apiRemoveQuotationLine(id, lineId)
       setQuotation(updated)
       toast({ title: "Line Removed" })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Failed to remove", type: "error" })
     }
   }
 
@@ -137,9 +157,8 @@ export default function QuotationDetailPage() {
       const updated = await apiConfirmQuotation(id)
       setQuotation(updated)
       toast({ title: "Confirmed", description: "Submitted for approval flow." })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Failed to confirm", type: "error" })
     } finally {
       setSaving(false)
     }
@@ -151,10 +170,9 @@ export default function QuotationDetailPage() {
     try {
       const updated = await apiCancelQuotation(id)
       setQuotation(updated)
-      toast({ title: "Cancelled", type: "info" })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed"
-      toast({ title: "Error", description: msg, type: "error" })
+      toast({ title: "Cancelled" })
+    } catch {
+      toast({ title: "Error", description: "Failed to cancel", type: "error" })
     } finally {
       setSaving(false)
     }
@@ -167,7 +185,7 @@ export default function QuotationDetailPage() {
       setSuggestions((prev) => prev.filter(s => s.product_id !== productId))
       toast({ title: "Suggestion Applied" })
     } catch {
-      toast({ title: "Error", description: "Failed to apply suggestion", type: "error" })
+      toast({ title: "Error", description: "Failed to apply", type: "error" })
     }
   }
 
@@ -177,246 +195,365 @@ export default function QuotationDetailPage() {
       setSuggestions((prev) => prev.filter(s => s.product_id !== productId))
       toast({ title: "Suggestion Dismissed" })
     } catch {
-      toast({ title: "Error", description: "Failed to dismiss suggestion", type: "error" })
+      toast({ title: "Error", description: "Failed to dismiss", type: "error" })
     }
   }
 
-  if (loading) {
-    return <div className="flex items-center justify-center py-24 text-text-muted text-sm">Loading quotation…</div>
+  if (loading || !quotation) {
+    return (
+      <div className="space-y-6 max-w-6xl mx-auto pb-12">
+        <div className="flex justify-between items-center">
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <Skeleton className="h-48 w-full rounded-xl" />
+        <div className="flex gap-6 border-b border-border pb-3">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-6 w-24" />
+        </div>
+        <Skeleton className="h-96 w-full rounded-xl" />
+      </div>
+    )
   }
-  if (!quotation) return null
 
-  const canEdit = ["draft", "revision_requested", "under_negotiation"].includes(quotation.status)
-  const canConfirm = canEdit
-  const canCancel = !["cancelled", "fulfilled"].includes(quotation.status)
+  const isEditable = quotation.status === "draft" || quotation.status === "revision_requested"
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <div className="mb-2">
-            <Link href="/pipeline" className="text-xs text-text-muted hover:text-accent transition-colors">← Pipeline</Link>
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-6xl mx-auto pb-12">
+      
+      {/* Top Breadcrumb & Actions */}
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Link href="/pipeline" className="p-2 rounded-full hover:bg-surface-hover text-text-secondary transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div className="flex items-center gap-2 text-sm font-medium text-text-secondary">
+            <Link href="/pipeline" className="hover:text-text-primary transition-colors">Pipeline</Link>
+            <ChevronRight className="w-4 h-4 text-text-muted" />
+            <span className="font-mono font-bold text-text-primary">{quotation.number}</span>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold font-mono text-text-primary">{quotation.number}</h1>
-            <Badge variant="secondary" className={`font-mono text-xs ${STATUS_COLORS[quotation.status]}`}>
-              {quotation.status.replace(/_/g, " ")}
-            </Badge>
-            {risk && (
-              <Badge variant="secondary" className={`font-mono text-xs ${RISK_COLORS[risk.risk_level]}`}>
-                Risk: {risk.risk_level.toUpperCase()} ({risk.risk_score}/100)
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-text-secondary mt-1">
-            Customer: <span className="text-text-primary font-medium">{quotation.customer_name || "—"}</span>
-            {quotation.rep_name && <> · Rep: <span className="text-text-primary font-medium">{quotation.rep_name}</span></>}
-          </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {canConfirm && (
-            <Button onClick={handleConfirm} disabled={saving || quotation.lines.length === 0}>
-              ✓ Confirm & Submit
-            </Button>
-          )}
-          {canCancel && (
-            <Button variant="ghost" className="text-danger border border-transparent hover:border-danger/40" onClick={handleCancel} disabled={saving}>
+        <div className="flex items-center gap-3">
+          {isEditable && (
+            <Button variant="ghost" className="text-danger hover:bg-danger-soft hover:text-danger" onClick={handleCancel} disabled={saving}>
               Cancel Deal
             </Button>
           )}
-        </div>
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Subtotal", value: `$${(quotation.subtotal || 0).toLocaleString()}` },
-          { label: "Order Discount", value: `${quotation.order_discount_pct}%`, sub: `-$${(quotation.order_discount_amount || 0).toLocaleString()}` },
-          { label: "Total", value: `$${(quotation.total || 0).toLocaleString()}`, accent: true },
-          { label: "Gross Margin", value: quotation.gross_margin_pct != null ? `${quotation.gross_margin_pct.toFixed(1)}%` : "—", green: true },
-        ].map((kpi) => (
-          <Card key={kpi.label} className="p-4 border-border bg-surface">
-            <div className="text-[11px] font-mono text-text-secondary">{kpi.label}</div>
-            <div className={`font-mono font-extrabold text-xl mt-1 ${kpi.accent ? "text-accent" : kpi.green ? "text-emerald-600" : "text-text-primary"}`}>
-              {kpi.value}
-            </div>
-            {kpi.sub && <div className="text-[11px] text-text-muted mt-0.5">{kpi.sub}</div>}
-          </Card>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
-        {(["lines", "risk", "suggestions", "timeline"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-xs font-medium transition-colors border-b-2 -mb-px capitalize ${activeTab === tab ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-text-primary"}`}
-          >
-            {tab === "lines" ? `Lines (${quotation.lines.length})` :
-             tab === "suggestions" ? `AI Suggestions (${suggestions.length})` : tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Lines */}
-      {activeTab === "lines" && (
-        <div className="space-y-3">
-          {canEdit && <Button onClick={handleOpenAddLine} variant="secondary">+ Add Product Line</Button>}
-          {quotation.lines.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border rounded-lg text-text-muted text-sm">
-              No lines yet. Add products to build this quotation.
-            </div>
-          ) : (
-            <div className="border border-border rounded-lg overflow-hidden">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
-                  <tr>
-                    <th className="px-4 py-3">Product</th>
-                    <th className="px-4 py-3">Qty</th>
-                    <th className="px-4 py-3">Unit Price</th>
-                    <th className="px-4 py-3">Discount</th>
-                    <th className="px-4 py-3">Line Total</th>
-                    <th className="px-4 py-3">Margin</th>
-                    {canEdit && <th className="px-4 py-3"></th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {quotation.lines.map((line) => (
-                    <tr key={line.id} className="hover:bg-surface/60">
-                      <td className="px-4 py-3 font-medium text-text-primary">{line.product_name}</td>
-                      <td className="px-4 py-3 font-mono">{line.qty}</td>
-                      <td className="px-4 py-3 font-mono">${line.unit_price.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-mono text-amber-600">{line.discount_pct}%</td>
-                      <td className="px-4 py-3 font-mono font-semibold">${line.line_total.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-mono">
-                        <span className={(line.margin_pct || 0) >= 40 ? "text-emerald-600" : "text-amber-600"}>
-                          {line.margin_pct != null ? `${line.margin_pct.toFixed(1)}%` : "—"}
-                        </span>
-                      </td>
-                      {canEdit && (
-                        <td className="px-4 py-3">
-                          <Button variant="ghost" className="h-6 px-2 text-xs text-danger hover:text-danger" onClick={() => handleRemoveLine(line.id)}>×</Button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {isEditable && quotation.lines && quotation.lines.length > 0 && (
+            <Button onClick={handleConfirm} disabled={saving} className="font-bold shadow-md">
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Confirm & Submit
+            </Button>
           )}
         </div>
-      )}
+      </motion.div>
 
-      {/* Risk */}
-      {activeTab === "risk" && (
-        <Card className="p-6 border-border bg-surface space-y-4">
-          {risk ? (
-            <>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-text-primary">Risk Score:</span>
-                <span className={`font-mono font-extrabold text-2xl ${RISK_COLORS[risk.risk_level]}`}>{risk.risk_score}/100</span>
-                <Badge variant="secondary" className={`font-mono text-xs ${RISK_COLORS[risk.risk_level]}`}>{risk.risk_level.toUpperCase()}</Badge>
+      {/* Hero Deal Card */}
+      <motion.div variants={itemVariants}>
+        <Card className="premium-card p-6 md:p-8 bg-gradient-to-br from-surface to-surface-hover border-border relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
+            <TrendingUp className="w-64 h-64 text-text-primary" />
+          </div>
+          <div className="flex flex-col md:flex-row gap-8 justify-between relative z-10">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Badge variant="secondary" className={`font-mono text-[10px] uppercase tracking-widest px-2.5 py-1 ${STATUS_COLORS[quotation.status]}`}>
+                  {STATUS_LABELS[quotation.status]}
+                </Badge>
+                {risk && (
+                  <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-1 border-orange-200 text-orange-600 bg-orange-50">
+                    <ShieldAlert className="w-3 h-3 mr-1 inline" /> {risk.flags.length > 0 ? "Flags Found" : "Analyzed"}
+                  </Badge>
+                )}
               </div>
-              {risk.flags.length > 0 && (
+              <h1 className="text-3xl md:text-5xl font-heading font-extrabold text-text-primary tracking-tight mt-2">
+                {quotation.customer_name || "Unknown Customer"}
+              </h1>
+              <p className="text-sm font-medium text-text-secondary mt-2 flex items-center gap-4">
+                <span>Rep: <strong className="text-text-primary">{quotation.rep_name || "—"}</strong></span>
+                <span>Promised: <strong className="text-text-primary">{quotation.promised_date ? new Date(quotation.promised_date).toLocaleDateString() : "—"}</strong></span>
+              </p>
+            </div>
+
+            <div className="flex flex-col items-start md:items-end justify-center bg-background/50 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-sm">
+              <div className="text-xs font-heading font-bold text-text-secondary uppercase tracking-widest mb-1">Total Value</div>
+              <div className="font-mono text-4xl md:text-5xl font-extrabold text-text-primary tracking-tighter">
+                ${(quotation.total || 0).toLocaleString()}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <div className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                  (quotation.gross_margin_pct || 0) >= 40 ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100"
+                }`}>
+                  Margin: {quotation.gross_margin_pct != null ? `${quotation.gross_margin_pct.toFixed(1)}%` : "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Tabs */}
+      <motion.div variants={itemVariants} className="flex items-center gap-6 border-b border-border">
+        {[
+          { id: "lines", label: "Line Items", count: quotation.lines?.length || 0 },
+          { id: "risk", label: "Risk & Governance", count: null },
+          { id: "suggestions", label: "Upsell AI", count: suggestions.length },
+          { id: "timeline", label: "Audit Timeline", count: timeline.length },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as 'lines' | 'risk' | 'suggestions' | 'timeline')}
+            className={`pb-3 text-sm font-bold transition-all relative ${
+              activeTab === tab.id ? "text-accent" : "text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            {tab.label}
+            {tab.count !== null && tab.count > 0 && (
+              <span className={`ml-2 text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                activeTab === tab.id ? "bg-accent/10 text-accent" : "bg-surface border border-border"
+              }`}>
+                {tab.count}
+              </span>
+            )}
+            {activeTab === tab.id && (
+              <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
+            )}
+          </button>
+        ))}
+      </motion.div>
+
+      {/* Tab Content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+        >
+          {activeTab === "lines" && (
+            <Card className="premium-card overflow-hidden">
+              <div className="p-5 border-b border-border/50 flex items-center justify-between bg-surface-hover/30">
+                <h2 className="text-lg font-heading font-bold text-text-primary">Products & Services</h2>
+                {isEditable && (
+                  <Button size="sm" onClick={handleOpenAddLine} className="h-8 font-bold text-xs shadow-sm">
+                    <Plus className="w-3 h-3 mr-1" /> Add Line
+                  </Button>
+                )}
+              </div>
+              <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-sm text-left whitespace-nowrap">
+                  <thead className="bg-surface-hover/50 border-b border-border">
+                    <tr className="text-[11px] font-heading font-bold text-text-secondary uppercase tracking-wider">
+                      <th className="px-5 py-3">Product</th>
+                      <th className="px-5 py-3 text-right">Qty</th>
+                      <th className="px-5 py-3 text-right">Unit Price</th>
+                      <th className="px-5 py-3 text-right">Discount</th>
+                      <th className="px-5 py-3 text-right">Subtotal</th>
+                      <th className="px-5 py-3 text-right">Margin</th>
+                      {isEditable && <th className="px-5 py-3 w-10"></th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40 bg-surface">
+                    {(!quotation.lines || quotation.lines.length === 0) ? (
+                      <tr><td colSpan={7} className="px-5 py-12 text-center text-text-muted font-medium border-2 border-dashed border-border/50 m-4 rounded-lg block">No lines added yet.</td></tr>
+                    ) : quotation.lines.map((line) => (
+                      <tr key={line.id} className="interactive-row">
+                        <td className="px-5 py-4">
+                          <div className="font-bold text-text-primary">{line.product_name}</div>
+                          <div className="text-[10px] font-mono text-text-muted mt-0.5">SKU: {line.product_id.substring(0,8)}</div>
+                        </td>
+                        <td className="px-5 py-4 text-right font-mono font-medium">{line.qty}</td>
+                        <td className="px-5 py-4 text-right font-mono font-medium">${(line.unit_price || 0).toLocaleString()}</td>
+                        <td className="px-5 py-4 text-right font-mono">
+                          {line.discount_pct > 0 ? (
+                            <span className="text-accent font-bold px-1.5 py-0.5 bg-accent-soft/30 rounded">
+                              {line.discount_pct}%
+                            </span>
+                          ) : "—"}
+                        </td>
+                        <td className="px-5 py-4 text-right font-mono font-bold text-text-primary">
+                          ${(line.line_total || 0).toLocaleString()}
+                        </td>
+                        <td className="px-5 py-4 text-right font-mono">
+                          <span className={(line.margin_pct || 0) >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
+                            {line.margin_pct != null ? `${line.margin_pct.toFixed(1)}%` : "—"}
+                          </span>
+                        </td>
+                        {isEditable && (
+                          <td className="px-5 py-4 text-right">
+                            <button onClick={() => handleRemoveLine(line.id)} className="text-text-muted hover:text-danger p-1 rounded hover:bg-danger-soft transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
+          {activeTab === "risk" && risk && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="premium-card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <ShieldAlert className={`w-5 h-5 ${RISK_COLORS[risk.risk_level]}`} />
+                  <h2 className="text-lg font-heading font-bold text-text-primary">Risk Assessment</h2>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs font-bold text-text-secondary uppercase tracking-widest mb-1">Level</div>
+                    <Badge variant="secondary" className={`font-mono uppercase px-2.5 py-1 ${RISK_COLORS[risk.risk_level]}`}>
+                      {risk.risk_level} Risk
+                    </Badge>
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-text-secondary uppercase tracking-widest mb-1">Risk Detail</div>
+                    <div className="text-sm font-bold text-text-primary bg-surface-hover p-3 rounded-lg border border-border inline-block">
+                      Score: <span className="text-accent">{risk.risk_score}</span> / 100
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <Card className="premium-card p-6">
+                <h2 className="text-lg font-heading font-bold text-text-primary mb-4">Risk Factors</h2>
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-text-secondary">Risk Flags:</p>
-                  {risk.flags.map((flag, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-text-primary bg-background border border-border rounded p-2">
-                      <span className="text-amber-500 mt-0.5">⚠</span>{flag}
+                  {risk.flags.length === 0 ? (
+                    <div className="text-sm text-text-muted font-medium">No flags detected.</div>
+                  ) : risk.flags.map((r: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2 bg-amber-50/50 border border-amber-100 p-3 rounded-lg">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <span className="text-sm text-amber-900 font-medium">{r}</span>
                     </div>
                   ))}
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-8 text-text-muted text-sm">Loading risk analysis…</div>
+              </Card>
+            </div>
           )}
-        </Card>
-      )}
 
-      {/* Suggestions */}
-      {activeTab === "suggestions" && (
-        <div className="space-y-3">
-          {suggestions.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border rounded-lg text-text-muted text-sm">No upsell suggestions.</div>
-          ) : suggestions.map((s) => (
-            <Card key={s.product_id} className="p-4 border-border bg-surface flex items-center justify-between gap-4">
-              <div>
-                <div className="font-semibold text-text-primary text-sm">{s.product_name}</div>
-                <div className="text-xs text-text-secondary mt-0.5">{s.reason}</div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <Button variant="secondary" className="h-7 px-3 text-xs" onClick={() => handleApplySuggestion(s.product_id)}>Add to Deal</Button>
-                <Button variant="ghost" className="h-7 px-2 text-xs text-text-muted" onClick={() => handleDismissSuggestion(s.product_id)}>Dismiss</Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Timeline */}
-      {activeTab === "timeline" && (
-        <div className="space-y-3">
-          {timeline.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-border rounded-lg text-text-muted text-sm">No timeline events yet.</div>
-          ) : (
-            <div className="relative pl-4">
-              <div className="absolute left-0 top-2 bottom-2 w-px bg-border" />
-              {timeline.map((event) => (
-                <div key={event.id} className="relative mb-4 pl-6">
-                  <div className="absolute left-[-4px] top-1.5 w-2.5 h-2.5 rounded-full bg-accent border-2 border-surface" />
-                  <div className="text-xs font-medium text-text-primary">{event.event_type.replace(/_/g, " ")}</div>
-                  {event.description && <div className="text-xs text-text-secondary mt-0.5">{event.description}</div>}
-                  <div className="text-[11px] text-text-muted mt-1 font-mono">
-                    {event.actor_name && <>{event.actor_name} · </>}{new Date(event.created_at).toLocaleString()}
-                  </div>
+          {activeTab === "suggestions" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {suggestions.length === 0 ? (
+                <div className="col-span-full text-center py-12 text-sm text-text-muted font-medium border-2 border-dashed border-border/50 rounded-xl">
+                  No AI upsell suggestions available.
                 </div>
+              ) : suggestions.map((s) => (
+                <Card key={s.product_id} className="premium-card p-5 bg-gradient-to-b from-surface to-accent-soft/5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="w-4 h-4 text-accent" />
+                    <div className="text-xs font-bold text-accent uppercase tracking-widest">AI Suggestion</div>
+                  </div>
+                  <h3 className="font-bold text-text-primary mb-2">{s.product_name}</h3>
+                  <p className="text-xs text-text-secondary font-medium leading-relaxed mb-5">{s.reason}</p>
+                  
+                  {isEditable && (
+                    <div className="flex gap-2 mt-auto">
+                      <Button size="sm" className="flex-1 font-bold text-xs" onClick={() => handleApplySuggestion(s.product_id)}>
+                        Add to Deal
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-text-muted text-xs hover:text-danger" onClick={() => handleDismissSuggestion(s.product_id)}>
+                        Dismiss
+                      </Button>
+                    </div>
+                  )}
+                </Card>
               ))}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Add Line Drawer */}
+          {activeTab === "timeline" && (
+            <Card className="premium-card p-6">
+              <div className="space-y-6">
+                {timeline.length === 0 ? (
+                  <div className="text-sm text-text-muted font-medium">No audit events found.</div>
+                ) : timeline.map((evt) => (
+                  <div key={evt.id} className="flex gap-4 relative">
+                    <div className="flex flex-col items-center">
+                      <div className="w-2.5 h-2.5 rounded-full bg-accent ring-4 ring-accent-soft z-10" />
+                      <div className="w-[1px] bg-border flex-1 mt-2" />
+                    </div>
+                    <div className="pb-6 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-text-primary text-sm">{evt.event_type.replace(/_/g, " ")}</span>
+                        <span className="text-[10px] font-mono text-text-muted">{new Date(evt.created_at).toLocaleString()}</span>
+                      </div>
+                      <div className="text-xs text-text-secondary mt-1 font-medium bg-surface-hover p-2 rounded-md inline-block border border-border/50 mt-2">
+                        {evt.description || "No additional context."}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
       <FormDrawer
         isOpen={addLineOpen}
         onClose={() => setAddLineOpen(false)}
-        title="Add Product Line"
-        subtitle="Add a product to this quotation"
+        title="Add Line Item"
+        subtitle="Select a product and configure pricing"
         footerActions={
           <>
             <Button variant="ghost" onClick={() => setAddLineOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddLine} disabled={saving}>{saving ? "Adding…" : "Add Line"}</Button>
+            <Button onClick={handleAddLine} disabled={saving} className="font-bold">
+              {saving ? "Adding..." : "Add to Deal"}
+            </Button>
           </>
         }
       >
-        <form onSubmit={handleAddLine} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Product *</label>
+        <form onSubmit={handleAddLine} className="space-y-5 mt-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Product <span className="text-accent">*</span></label>
             <select
               value={newLine.product_id}
               onChange={(e) => setNewLine({ ...newLine, product_id: e.target.value })}
-              className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent"
+              className="w-full h-11 rounded-lg border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all shadow-sm"
               required
             >
-              <option value="">Select a product…</option>
+              <option value="">Select a product...</option>
               {products.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} — ${p.list_price.toLocaleString()}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name} - ${p.list_price.toLocaleString()}
+                </option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Quantity</label>
-            <Input type="number" min={1} value={newLine.qty} onChange={(e) => setNewLine({ ...newLine, qty: parseInt(e.target.value) || 1 })} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Line Discount (%)</label>
-            <Input type="number" min={0} max={100} step={0.1} value={newLine.discount_pct} onChange={(e) => setNewLine({ ...newLine, discount_pct: parseFloat(e.target.value) || 0 })} />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Quantity</label>
+              <Input
+                type="number"
+                min="1"
+                value={newLine.qty}
+                onChange={(e) => setNewLine({ ...newLine, qty: parseInt(e.target.value) || 1 })}
+                className="h-11 bg-surface shadow-sm font-mono text-sm"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Discount (%)</label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={newLine.discount_pct}
+                onChange={(e) => setNewLine({ ...newLine, discount_pct: parseFloat(e.target.value) || 0 })}
+                className="h-11 bg-surface shadow-sm font-mono text-sm"
+              />
+            </div>
           </div>
         </form>
       </FormDrawer>
-    </div>
+    </motion.div>
   )
 }

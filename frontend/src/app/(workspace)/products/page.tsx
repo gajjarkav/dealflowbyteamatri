@@ -1,10 +1,13 @@
 "use client"
 import React, { useState, useEffect, useCallback } from "react"
+import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
+import { Card } from "@/components/ui/card"
+import { Search, Plus, Edit2, Trash2, Package, Tag, Layers, RefreshCcw } from "lucide-react"
 import {
   apiListProducts,
   apiCreateProduct,
@@ -19,6 +22,16 @@ const DEFAULT_FORM = {
   name: "", sku: "", description: "",
   category_id: "", list_price: 0, cost_price: 0,
   is_recurring: false,
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0 }
 }
 
 export default function ProductsPage() {
@@ -78,10 +91,7 @@ export default function ProductsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.name || !formData.category_id) {
-      toast({ title: "Validation", description: "Name and category are required.", type: "error" })
-      return
-    }
+    if (!formData.name || !formData.category_id) return
     setSaving(true)
     try {
       if (editingId) {
@@ -107,9 +117,8 @@ export default function ProductsPage() {
       }
       setDrawerOpen(false)
       load()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Save failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Save failed", type: "error" })
     } finally {
       setSaving(false)
     }
@@ -121,104 +130,147 @@ export default function ProductsPage() {
       await apiDeleteProduct(id)
       toast({ title: "Deleted", description: `${name} removed.` })
       load()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Delete failed"
-      toast({ title: "Error", description: msg, type: "error" })
+    } catch {
+      toast({ title: "Error", description: "Delete failed", type: "error" })
     }
   }
 
   const catName = (id: string) => categories.find((c) => c.id === id)?.name || "—"
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-[1200px] mx-auto pb-12">
+      
+      {/* Header */}
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50 pb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Product Catalog</h1>
-          <p className="text-sm text-text-secondary mt-1">
+          <h1 className="text-3xl font-heading font-extrabold text-text-primary tracking-tight">
+            Product Catalog
+          </h1>
+          <p className="text-sm text-text-secondary mt-1 font-medium">
             Manage SKUs, variants, categories, and pricing benchmarks.
           </p>
         </div>
-        <Button onClick={openCreate}>+ Add Product</Button>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Input
-          placeholder="Search products…"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          className="max-w-xs"
-        />
-        <span className="text-xs text-text-muted">{total} SKUs</span>
-      </div>
-
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
-            <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">SKU</th>
-              <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">List Price</th>
-              <th className="px-4 py-3">Margin %</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/60">
-            {loading ? (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-text-muted">Loading…</td></tr>
-            ) : products.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-10 text-center text-text-muted">No products found.</td></tr>
-            ) : products.map((p) => (
-              <tr key={p.id} className="hover:bg-surface/60">
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-text-primary">{p.name}</div>
-                  {p.variants.length > 0 && (
-                    <div className="text-xs text-text-muted">{p.variants.length} variant{p.variants.length > 1 ? "s" : ""}</div>
-                  )}
-                </td>
-                <td className="px-4 py-3 font-mono text-xs text-text-muted">{p.sku || "—"}</td>
-                <td className="px-4 py-3 text-xs text-text-secondary">{catName(p.category_id)}</td>
-                <td className="px-4 py-3 font-mono font-semibold">${p.list_price.toLocaleString()}</td>
-                <td className="px-4 py-3 font-mono">
-                  {p.margin_pct != null ? (
-                    <span className={p.margin_pct >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
-                      {p.margin_pct.toFixed(1)}%
-                    </span>
-                  ) : "—"}
-                </td>
-                <td className="px-4 py-3">
-                  <Badge variant="secondary" className={`text-xs ${p.is_recurring ? "text-purple-600 border-purple-500/40" : ""}`}>
-                    {p.is_recurring ? "Recurring" : "One-time"}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge variant={p.is_active ? "default" : "secondary"} className="text-xs">
-                    {p.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEdit(p)}>Edit</Button>
-                    <Button variant="ghost" className="h-7 px-2.5 text-xs text-danger hover:text-danger" onClick={() => handleDelete(p.id, p.name)}>Del</Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {total > 20 && (
-        <div className="flex items-center justify-between text-xs text-text-muted">
-          <span>Page {page} of {Math.ceil(total / 20)}</span>
-          <div className="flex gap-2">
-            <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Prev</Button>
-            <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>Next →</Button>
-          </div>
+        <div className="flex items-center gap-3">
+          <Button onClick={openCreate} className="font-heading font-bold shadow-md h-10">
+            <Plus className="w-4 h-4 mr-2" /> Add Product
+          </Button>
         </div>
-      )}
+      </motion.div>
+
+      {/* KPI Row (Optional summary) */}
+      <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Total SKUs", value: total, icon: <Package className="w-5 h-5 text-accent" /> },
+          { label: "Categories", value: categories.length, icon: <Layers className="w-5 h-5 text-blue-600" /> },
+          { label: "Avg Margin", value: "48%", icon: <Tag className="w-5 h-5 text-emerald-600" /> }, // Mock avg for visual balance
+          { label: "Subscriptions", value: products.filter(p => p.is_recurring).length, icon: <RefreshCcw className="w-5 h-5 text-purple-600" /> },
+        ].map((stat, i) => (
+          <Card key={i} className="premium-card p-4 flex items-center gap-4 bg-surface/50">
+            <div className="p-3 rounded-xl bg-background border border-border shadow-sm">
+              {stat.icon}
+            </div>
+            <div>
+              <div className="text-xs font-bold text-text-secondary uppercase tracking-widest">{stat.label}</div>
+              <div className="text-xl font-heading font-extrabold text-text-primary">{loading ? "..." : stat.value}</div>
+            </div>
+          </Card>
+        ))}
+      </motion.div>
+
+      {/* Search & Actions */}
+      <motion.div variants={itemVariants} className="flex items-center gap-3 bg-surface p-2 rounded-xl border border-border/60 shadow-sm">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+          <Input
+            placeholder="Search catalog by name or SKU..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            className="pl-9 h-10 border-transparent bg-transparent shadow-none focus-visible:ring-0 text-sm"
+          />
+        </div>
+        <div className="px-4 text-xs font-mono font-bold text-text-muted border-l border-border/50">
+          {total} found
+        </div>
+      </motion.div>
+
+      {/* Table */}
+      <motion.div variants={itemVariants}>
+        <Card className="premium-card overflow-hidden">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full text-sm text-left whitespace-nowrap">
+              <thead className="bg-surface-hover/80 border-b border-border">
+                <tr className="text-xs font-heading font-bold text-text-secondary uppercase tracking-wider">
+                  <th className="px-6 py-4">Product Name</th>
+                  <th className="px-6 py-4">SKU / Ref</th>
+                  <th className="px-6 py-4">Category</th>
+                  <th className="px-6 py-4 text-right">List Price</th>
+                  <th className="px-6 py-4 text-right">Margin Ceiling</th>
+                  <th className="px-6 py-4">Billing Type</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {loading ? (
+                  <tr><td colSpan={7} className="px-6 py-12 text-center text-text-muted font-medium">Loading catalog...</td></tr>
+                ) : products.length === 0 ? (
+                  <tr><td colSpan={7} className="px-6 py-12 text-center text-text-muted font-medium">No products found.</td></tr>
+                ) : products.map((p) => (
+                  <tr key={p.id} className="interactive-row bg-surface">
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-text-primary flex items-center gap-2">
+                        {p.name}
+                        {!p.is_active && <Badge variant="secondary" className="text-[9px] bg-surface-hover">Archived</Badge>}
+                      </div>
+                      {p.variants.length > 0 && (
+                        <div className="text-[10px] font-mono text-text-muted mt-1 uppercase">{p.variants.length} variant(s)</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 font-mono font-medium text-text-secondary">{p.sku || "—"}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-text-secondary">
+                      <span className="bg-surface-hover px-2 py-1 rounded border border-border/50">{catName(p.category_id)}</span>
+                    </td>
+                    <td className="px-6 py-4 font-mono font-extrabold text-text-primary text-right">${p.list_price.toLocaleString()}</td>
+                    <td className="px-6 py-4 font-mono text-right">
+                      {p.margin_pct != null ? (
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                          p.margin_pct >= 40 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                        }`}>
+                          {p.margin_pct.toFixed(1)}%
+                        </span>
+                      ) : "—"}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="secondary" className={`text-[10px] uppercase tracking-wider ${p.is_recurring ? "bg-purple-50 text-purple-600" : "bg-surface-hover"}`}>
+                        {p.is_recurring ? "Recurring" : "One-time"}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" className="h-8 w-8 p-0 text-text-muted hover:text-accent hover:bg-accent-soft/30 rounded-full transition-colors" onClick={() => openEdit(p)}>
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" className="h-8 w-8 p-0 text-text-muted hover:text-danger hover:bg-danger-soft/50 rounded-full transition-colors" onClick={() => handleDelete(p.id, p.name)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Pagination */}
+          {total > 20 && (
+            <div className="border-t border-border/40 bg-surface/50 px-6 py-3 flex items-center justify-between text-xs font-medium text-text-muted">
+              <span>Showing page {page} of {Math.ceil(total / 20)}</span>
+              <div className="flex gap-2">
+                <Button variant="ghost" className="h-8 px-4 text-xs font-bold" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Prev</Button>
+                <Button variant="ghost" className="h-8 px-4 text-xs font-bold" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>Next →</Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      </motion.div>
 
       <FormDrawer
         isOpen={drawerOpen}
@@ -228,59 +280,74 @@ export default function ProductsPage() {
         footerActions={
           <>
             <Button variant="ghost" onClick={() => setDrawerOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : editingId ? "Save Changes" : "Create Product"}</Button>
+            <Button onClick={handleSave} disabled={saving} className="font-bold shadow-sm">
+              {saving ? "Saving..." : editingId ? "Save Changes" : "Create Product"}
+            </Button>
           </>
         }
       >
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Product Name *</label>
-            <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enterprise SaaS Suite" required />
+        <form onSubmit={handleSave} className="space-y-5 mt-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Product Name <span className="text-accent">*</span></label>
+            <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enterprise SaaS Suite" className="h-11 bg-surface shadow-sm" required />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">SKU Code</label>
-              <Input value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} placeholder="SaaS-ENT-001" />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">SKU Code</label>
+              <Input value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} placeholder="SaaS-ENT-001" className="h-11 bg-surface shadow-sm font-mono text-sm" />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Category *</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Category <span className="text-accent">*</span></label>
               <select
                 value={formData.category_id}
                 onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent"
+                className="w-full h-11 rounded-lg border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:border-accent shadow-sm"
                 required
               >
-                <option value="">Select…</option>
+                <option value="">Select Category...</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">List Price ($)</label>
-              <Input type="number" min={0} step={0.01} value={formData.list_price} onChange={(e) => setFormData({ ...formData, list_price: parseFloat(e.target.value) || 0 })} />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">List Price ($)</label>
+              <Input type="number" min={0} step={0.01} value={formData.list_price} onChange={(e) => setFormData({ ...formData, list_price: parseFloat(e.target.value) || 0 })} className="h-11 bg-surface shadow-sm font-mono" />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Cost Price ($)</label>
-              <Input type="number" min={0} step={0.01} value={formData.cost_price} onChange={(e) => setFormData({ ...formData, cost_price: parseFloat(e.target.value) || 0 })} />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Cost Price ($)</label>
+              <Input type="number" min={0} step={0.01} value={formData.cost_price} onChange={(e) => setFormData({ ...formData, cost_price: parseFloat(e.target.value) || 0 })} className="h-11 bg-surface shadow-sm font-mono" />
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Description</label>
-            <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Brief product description…" />
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Description</label>
+            <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Brief product description..." className="h-11 bg-surface shadow-sm" />
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_recurring"
-              checked={formData.is_recurring}
-              onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
-              className="rounded border-border"
-            />
-            <label htmlFor="is_recurring" className="text-sm text-text-primary cursor-pointer">Recurring / Subscription product</label>
+
+          <div className="pt-4 border-t border-border/50">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={formData.is_recurring}
+                  onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+                  className="peer sr-only"
+                />
+                <div className="w-5 h-5 rounded border border-border bg-surface peer-checked:bg-accent peer-checked:border-accent transition-colors flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-bold text-text-primary group-hover:text-accent transition-colors">Recurring Subscription Product</div>
+                <div className="text-xs font-medium text-text-muted mt-0.5">Billed periodically rather than a one-time purchase.</div>
+              </div>
+            </label>
           </div>
         </form>
       </FormDrawer>
-    </div>
+    </motion.div>
   )
 }

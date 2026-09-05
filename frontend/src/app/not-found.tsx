@@ -1,85 +1,79 @@
+"use client"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
-import { Playfair_Display } from "next/font/google"
+import { motion } from "framer-motion"
+import { ArrowLeft, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-
-const playfair = Playfair_Display({ subsets: ["latin"] })
 
 export default function NotFound() {
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+
+  useEffect(() => {
+    const updateMousePosition = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY })
+    }
+    window.addEventListener("mousemove", updateMousePosition)
+    return () => {
+      window.removeEventListener("mousemove", updateMousePosition)
+    }
+  }, [])
+
   return (
-    <div className="min-h-screen bg-background text-text-primary flex flex-col justify-between p-6 md:p-12">
-      {/* Top Bar */}
-      <header className="flex items-center justify-between border-b border-border pb-6 max-w-6xl mx-auto w-full">
-        <Link href="/" className="text-xl font-bold tracking-tight">
-          DealFlow<span className="text-accent">360</span>
-        </Link>
-        <span className="font-mono text-xs text-text-muted border border-border px-2.5 py-1 rounded bg-surface">
-          STATUS: 404_ROUTE_NOT_FOUND
-        </span>
-      </header>
+    <div className="min-h-screen bg-background overflow-hidden relative flex flex-col items-center justify-center font-sans selection:bg-accent-soft selection:text-accent">
+      
+      {/* Interactive Background Glow based on Mouse Position */}
+      <motion.div 
+        className="pointer-events-none absolute inset-0 z-0 opacity-40 mix-blend-multiply filter blur-[120px]"
+        animate={{
+          background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(194, 65, 12, 0.15), transparent 80%)`
+        }}
+      />
+      
+      {/* Animated geometric elements */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-20">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1, rotate: 360 }}
+          transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-[10%] -right-[5%] w-[40%] h-[60%] rounded-full border border-accent/20 border-dashed"
+        />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1, rotate: -360 }}
+          transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
+          className="absolute -bottom-[20%] -left-[10%] w-[50%] h-[70%] rounded-full border border-border"
+        />
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto w-full my-auto py-12 flex flex-col items-center text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-accent/30 bg-accent/5 text-accent text-xs font-mono font-medium mb-6 animate-pulse">
-          <span className="w-2 h-2 rounded-full bg-accent" />
-          SIGNAL LOST // OFF-RADAR
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="relative z-10 text-center flex flex-col items-center max-w-lg px-6"
+      >
+        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center shadow-glow mb-8 transform -rotate-12">
+          <Zap className="text-white h-8 w-8" />
         </div>
-
-        <h1 className={`${playfair.className} text-5xl md:text-7xl font-bold tracking-tight text-text-primary mb-4`}>
-          Deal Path <span className="text-accent italic">Uncharted</span>
+        
+        <h1 className="font-heading text-8xl md:text-9xl font-extrabold text-text-primary tracking-tighter mb-4">
+          404
         </h1>
-
-        <p className="text-text-secondary text-base md:text-lg max-w-xl mx-auto mb-10 leading-relaxed">
-          The requested resource, quotation revision, or workflow coordinate does not exist or has been relocated to another ledger.
+        
+        <h2 className="text-xl md:text-2xl font-bold text-text-primary mb-4 font-heading">
+          Lost in the Deal Matrix
+        </h2>
+        
+        <p className="text-text-secondary font-medium leading-relaxed mb-10">
+          The page or quotation you are looking for has been moved, deleted, or never existed in the first place.
         </p>
 
-        {/* Quick Route Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mb-10 text-left">
-          <Link href="/dashboard" className="group">
-            <Card className="p-4 h-full border-border hover:border-accent/60 transition-all bg-surface hover:bg-surface/80">
-              <div className="font-mono text-xs text-accent mb-1 group-hover:translate-x-0.5 transition-transform">01 // COMMAND</div>
-              <div className="font-semibold text-sm text-text-primary mb-1">Sales Dashboard</div>
-              <div className="text-xs text-text-muted">Return to operational overview and fast metrics.</div>
-            </Card>
-          </Link>
-
-          <Link href="/pipeline" className="group">
-            <Card className="p-4 h-full border-border hover:border-accent/60 transition-all bg-surface hover:bg-surface/80">
-              <div className="font-mono text-xs text-accent mb-1 group-hover:translate-x-0.5 transition-transform">02 // PIPELINE</div>
-              <div className="font-semibold text-sm text-text-primary mb-1">Active Quotations</div>
-              <div className="text-xs text-text-muted">View kanban stages, approvals, and deal values.</div>
-            </Card>
-          </Link>
-
-          <Link href="/portal" className="group">
-            <Card className="p-4 h-full border-border hover:border-accent/60 transition-all bg-surface hover:bg-surface/80">
-              <div className="font-mono text-xs text-accent mb-1 group-hover:translate-x-0.5 transition-transform">03 // PORTAL</div>
-              <div className="font-semibold text-sm text-text-primary mb-1">Customer Portal</div>
-              <div className="text-xs text-text-muted">Access client negotiation room and quotation preview.</div>
-            </Card>
-          </Link>
-        </div>
-
-        {/* Action Button */}
-        <div className="flex flex-wrap gap-4 justify-center">
-          <Link href="/">
-            <Button variant="primary" className="px-6">
-              Return to Safe Harbor
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button variant="secondary" className="px-6">
-              Switch User / Sign In
-            </Button>
-          </Link>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border pt-6 max-w-6xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between text-xs text-text-muted gap-4">
-        <div>DealFlow360 Self-Governing Sales Engine &bull; Odoo Hackathon 2026</div>
-        <div className="font-mono">ERR_CODE: 404_PAGE_DISCONNECTED</div>
-      </footer>
+        <Link href="/">
+          <Button className="h-12 px-8 rounded-full font-heading font-bold text-base bg-text-primary hover:bg-text-secondary shadow-lg shadow-text-primary/20 hover:scale-105 transition-transform">
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Return to Command Center
+          </Button>
+        </Link>
+      </motion.div>
     </div>
   )
 }
