@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { DataTable } from "@/components/ui/data-table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { apiListQuotations, type QuotationResponse } from "@/lib/api/quotations"
 
@@ -84,48 +85,59 @@ export default function DealHealthPage() {
           </Badge>
         </div>
 
-        <div className="border border-border rounded overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-background/80 border-b border-border font-mono text-text-secondary">
-              <tr>
-                <th className="p-3">Quotation</th>
-                <th className="p-3">Customer</th>
-                <th className="p-3">Deal Value</th>
-                <th className="p-3">Discount</th>
-                <th className="p-3">Gross Margin</th>
-                <th className="p-3">Risk Assessment Factor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {quotations.map((q) => (
-                <tr key={q.id} className="hover:bg-background/40 transition-colors">
-                  <td className="p-3 font-mono font-bold text-text-primary">{q.number}</td>
-                  <td className="p-3 font-medium text-text-primary">{q.customer_name}</td>
-                  <td className="p-3 font-mono font-bold text-text-primary">${(q.total || 0).toLocaleString()}</td>
-                  <td className="p-3 font-mono text-accent font-semibold">{q.order_discount_pct}%</td>
-                  <td className="p-3 font-mono">
-                    <span className={(q.gross_margin_pct || 0) >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
-                      {q.gross_margin_pct != null ? `${q.gross_margin_pct.toFixed(1)}%` : "—"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    {q.risk_score && q.risk_score > 60 ? (
-                      <span className="text-accent font-medium flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-accent" />
-                        Discount exceeds tier cap &amp; margin &lt; 35%
-                      </span>
-                    ) : (
-                      <span className="text-text-muted flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-600" />
-                        Within acceptable variance
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={quotations}
+          columns={[
+            {
+              key: "number",
+              header: "Quotation",
+              render: (q) => <span className="font-mono font-bold text-text-primary">{q.number}</span>
+            },
+            {
+              key: "customer_name",
+              header: "Customer",
+              render: (q) => <span className="font-medium text-text-primary">{q.customer_name}</span>
+            },
+            {
+              key: "total",
+              header: "Deal Value",
+              render: (q) => <span className="font-mono font-bold text-text-primary">${(q.total || 0).toLocaleString()}</span>
+            },
+            {
+              key: "order_discount_pct",
+              header: "Discount",
+              render: (q) => <span className="font-mono text-accent font-semibold">{q.order_discount_pct}%</span>
+            },
+            {
+              key: "gross_margin_pct",
+              header: "Gross Margin",
+              render: (q) => (
+                <span className={(q.gross_margin_pct || 0) >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
+                  {q.gross_margin_pct != null ? `${q.gross_margin_pct.toFixed(1)}%` : "—"}
+                </span>
+              )
+            },
+            {
+              key: "risk_score",
+              header: "Risk Assessment Factor",
+              render: (q) => (
+                q.risk_score && q.risk_score > 60 ? (
+                  <span className="text-accent font-medium flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-accent" />
+                    Discount exceeds tier cap &amp; margin &lt; 35%
+                  </span>
+                ) : (
+                  <span className="text-text-muted flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                    Within acceptable variance
+                  </span>
+                )
+              )
+            }
+          ]}
+          searchPlaceholder="Search active deals by customer or number..."
+          searchKey={(q) => `${q.number} ${q.customer_name}`}
+        />
       </Card>
     </div>
   )

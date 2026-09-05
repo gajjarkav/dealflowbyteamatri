@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { DataTable } from "@/components/ui/data-table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { apiListQuotations, type QuotationResponse } from "@/lib/api/quotations"
 
@@ -83,51 +84,55 @@ export default function ReportsPage() {
           <Badge variant="secondary" className="font-mono text-xs">Fiscal Q3 Ranking</Badge>
         </div>
 
-        <div className="border border-border rounded overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-background/80 border-b border-border font-mono text-text-secondary">
-              <tr>
-                <th className="p-3">Representative</th>
-                <th className="p-3">Closed Volume</th>
-                <th className="p-3">Average Margin Realized</th>
-                <th className="p-3">Discount Discipline</th>
-                <th className="p-3">Active Deals</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              <tr className="hover:bg-background/40 transition-colors">
-                <td className="p-3">
-                  <span className="font-semibold text-text-primary block">Alex Rivera</span>
-                  <span className="text-[11px] text-text-muted font-mono">alex.rivera@dealflow360.com</span>
-                </td>
-                <td className="p-3 font-mono font-bold text-text-primary">$61,000</td>
-                <td className="p-3 font-mono font-bold text-emerald-600">60.6%</td>
-                <td className="p-3 font-mono text-text-primary">6.2% avg disc</td>
-                <td className="p-3 font-mono">2 active</td>
-              </tr>
-              <tr className="hover:bg-background/40 transition-colors">
-                <td className="p-3">
-                  <span className="font-semibold text-text-primary block">Elena Rostova</span>
-                  <span className="text-[11px] text-text-muted font-mono">elena.rostova@dealflow360.com</span>
-                </td>
-                <td className="p-3 font-mono font-bold text-text-primary">$45,900</td>
-                <td className="p-3 font-mono font-bold text-emerald-600">60.2%</td>
-                <td className="p-3 font-mono text-text-primary">6.5% avg disc</td>
-                <td className="p-3 font-mono">2 active</td>
-              </tr>
-              <tr className="hover:bg-background/40 transition-colors">
-                <td className="p-3">
-                  <span className="font-semibold text-text-primary block">David Kim</span>
-                  <span className="text-[11px] text-text-muted font-mono">david.kim@dealflow360.com</span>
-                </td>
-                <td className="p-3 font-mono font-bold text-text-primary">$179,200</td>
-                <td className="p-3 font-mono font-bold text-amber-600">32.6%</td>
-                <td className="p-3 font-mono text-accent">20.0% avg disc</td>
-                <td className="p-3 font-mono">2 active</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={[
+            { id: "1", name: "Alex Rivera", email: "alex.rivera@dealflow360.com", volume: "$61,000", margin: "60.6%", disc: "6.2%", active: "2 active", marginScore: "high" },
+            { id: "2", name: "Elena Rostova", email: "elena.rostova@dealflow360.com", volume: "$45,900", margin: "60.2%", disc: "6.5%", active: "2 active", marginScore: "high" },
+            { id: "3", name: "David Kim", email: "david.kim@dealflow360.com", volume: "$179,200", margin: "32.6%", disc: "20.0%", active: "2 active", marginScore: "low" },
+          ]}
+          columns={[
+            {
+              key: "name",
+              header: "Representative",
+              render: (r) => (
+                <div>
+                  <span className="font-semibold text-text-primary block">{r.name}</span>
+                  <span className="text-[11px] text-text-muted font-mono">{r.email}</span>
+                </div>
+              )
+            },
+            {
+              key: "volume",
+              header: "Closed Volume",
+              render: (r) => <span className="font-mono font-bold text-text-primary">{r.volume}</span>
+            },
+            {
+              key: "margin",
+              header: "Average Margin Realized",
+              render: (r) => (
+                <span className={`font-mono font-bold ${r.marginScore === "high" ? "text-emerald-600" : "text-amber-600"}`}>
+                  {r.margin}
+                </span>
+              )
+            },
+            {
+              key: "disc",
+              header: "Discount Discipline",
+              render: (r) => (
+                <span className={`font-mono ${r.marginScore === "low" ? "text-accent" : "text-text-primary"}`}>
+                  {r.disc} avg disc
+                </span>
+              )
+            },
+            {
+              key: "active",
+              header: "Active Deals",
+              render: (r) => <span className="font-mono">{r.active}</span>
+            }
+          ]}
+          searchPlaceholder="Search representatives..."
+          searchKey="name"
+        />
       </Card>
     </div>
   )
