@@ -23,7 +23,9 @@ export default function CustomersPage() {
     tier: "Gold" as CustomerItem["tier"],
     currency: "USD",
     creditLimit: 100000,
-    status: "Active" as "Active" | "Under Review"
+    status: "Active" as "Active" | "Under Review",
+    industry: "Technology",
+    accountManagerId: "usr-1"
   })
 
   const openCreateDrawer = () => {
@@ -36,7 +38,9 @@ export default function CustomersPage() {
       tier: "Gold",
       currency: "USD",
       creditLimit: 100000,
-      status: "Active"
+      status: "Active",
+      industry: "Technology",
+      accountManagerId: "usr-1"
     })
     setDrawerOpen(true)
   }
@@ -51,7 +55,9 @@ export default function CustomersPage() {
       tier: customer.tier,
       currency: customer.currency,
       creditLimit: customer.creditLimit,
-      status: customer.status
+      status: customer.status,
+      industry: customer.industry,
+      accountManagerId: customer.accountManagerId
     })
     setDrawerOpen(true)
   }
@@ -96,7 +102,7 @@ export default function CustomersPage() {
         }[c.tier]
 
         return (
-          <Badge variant="outline" className={`font-mono text-xs ${tierStyles}`}>
+          <Badge variant="secondary" className={`font-mono text-xs ${tierStyles}`}>
             {c.tier}
           </Badge>
         )

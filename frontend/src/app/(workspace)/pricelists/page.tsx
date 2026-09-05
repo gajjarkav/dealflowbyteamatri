@@ -49,7 +49,10 @@ export default function PriceListsPage() {
       currency: formData.currency,
       description: formData.description,
       ruleCount: 12,
-      isDefault: formData.isDefault
+      isDefault: formData.isDefault,
+      ruleType: "Discount",
+      modifierPercent: 10,
+      active: true
     }
 
     mockStore.pricelists = [newItem, ...store.pricelists]
@@ -72,7 +75,7 @@ export default function PriceListsPage() {
           <div className="font-medium text-text-primary flex items-center gap-2">
             {p.name}
             {p.isDefault && (
-              <Badge variant="outline" className="text-[10px] border-accent text-accent">
+              <Badge variant="secondary" className="text-[10px] border-accent text-accent">
                 DEFAULT
               </Badge>
             )}
@@ -85,7 +88,7 @@ export default function PriceListsPage() {
       key: "currency",
       header: "Currency",
       render: (p) => (
-        <Badge variant="outline" className="font-mono text-xs">
+        <Badge variant="secondary" className="font-mono text-xs">
           {p.currency}
         </Badge>
       )

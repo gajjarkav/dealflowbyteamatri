@@ -79,7 +79,7 @@ export default function UpsellRulesPage() {
       key: "incentiveDiscount",
       header: "Bundle Incentive",
       render: (r) => (
-        <Badge variant="outline" className="font-mono text-xs border-accent/40 text-accent">
+        <Badge variant="secondary" className="font-mono text-xs border-accent/40 text-accent">
           -{r.incentiveDiscount}% Off Attached Item
         </Badge>
       )

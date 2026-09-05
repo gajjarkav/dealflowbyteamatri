@@ -44,7 +44,7 @@ export default function PipelinePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="font-mono text-xs">
+          <Badge variant="secondary" className="font-mono text-xs">
             {store.quotations.length} Active Deals
           </Badge>
         </div>
@@ -88,7 +88,7 @@ export default function PipelinePage() {
                         <div className="flex items-start justify-between gap-1 mb-1">
                           <span className="font-mono text-xs font-bold text-text-primary">{deal.dealRef}</span>
                           <Badge
-                            variant="outline"
+                            variant="secondary"
                             className={`text-[9px] font-mono py-0 ${
                               deal.riskLevel === "High" ? "text-accent border-accent" : "text-text-muted"
                             }`}
@@ -130,7 +130,7 @@ export default function PipelinePage() {
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-bold font-mono text-text-primary">{selectedDeal.dealRef}</h2>
-                <Badge variant="outline" className="font-mono text-xs border-accent text-accent">
+                <Badge variant="secondary" className="font-mono text-xs border-accent text-accent">
                   {selectedDeal.stage}
                 </Badge>
               </div>

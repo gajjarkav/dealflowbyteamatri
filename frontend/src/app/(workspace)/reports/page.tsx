@@ -60,7 +60,7 @@ export default function ReportsPage() {
             <h2 className="text-base font-semibold text-text-primary">Sales Representative Leaderboard</h2>
             <p className="text-xs text-text-secondary">Margin integrity and closed deal performance</p>
           </div>
-          <Badge variant="outline" className="font-mono text-xs">Fiscal Q3 Ranking</Badge>
+          <Badge variant="secondary" className="font-mono text-xs">Fiscal Q3 Ranking</Badge>
         </div>
 
         <div className="border border-border rounded overflow-x-auto">

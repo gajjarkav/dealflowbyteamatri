@@ -77,7 +77,7 @@ export default function BillingPage() {
         }[i.status]
 
         return (
-          <Badge variant="outline" className={`font-mono text-xs ${colors}`}>
+          <Badge variant="secondary" className={`font-mono text-xs ${colors}`}>
             {i.status}
           </Badge>
         )
@@ -113,7 +113,7 @@ export default function BillingPage() {
           </p>
         </div>
 
-        <Badge variant="outline" className="font-mono text-xs">
+        <Badge variant="secondary" className="font-mono text-xs">
           Automatic Net-30 Invoicing
         </Badge>
       </div>

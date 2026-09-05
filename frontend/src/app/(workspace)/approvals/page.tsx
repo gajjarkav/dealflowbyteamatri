@@ -46,7 +46,7 @@ export default function ApprovalsPage() {
           </p>
         </div>
 
-        <Badge variant="outline" className="font-mono text-xs border-accent text-accent">
+        <Badge variant="secondary" className="font-mono text-xs border-accent text-accent">
           {pendingApprovals.length} Deals in Review
         </Badge>
       </div>
@@ -90,7 +90,7 @@ export default function ApprovalsPage() {
                   </td>
                   <td className="p-3">
                     <Badge
-                      variant="outline"
+                      variant="secondary"
                       className={`text-[10px] font-mono ${
                         quote.riskLevel === "High" ? "border-accent text-accent bg-accent/5" : "border-slate-400 text-slate-600"
                       }`}
@@ -123,7 +123,7 @@ export default function ApprovalsPage() {
                 <h2 className="text-xl font-bold font-mono text-text-primary">
                   Approval Protocol // {selectedQuote.dealRef}
                 </h2>
-                <Badge variant="outline" className="font-mono text-xs border-accent text-accent">
+                <Badge variant="secondary" className="font-mono text-xs border-accent text-accent">
                   Stage: {selectedQuote.stage}
                 </Badge>
               </div>

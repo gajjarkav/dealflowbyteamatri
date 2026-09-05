@@ -21,7 +21,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           <div className="hidden sm:flex items-center gap-2 text-xs text-text-secondary border-l border-border pl-4">
             <span>Account:</span>
             <span className="font-semibold text-text-primary">Stripe Enterprise</span>
-            <Badge variant="outline" className="border-accent/40 text-accent text-[10px] font-mono">
+            <Badge variant="secondary" className="border-accent/40 text-accent text-[10px] font-mono">
               Platinum Tier (20% Max Disc)
             </Badge>
           </div>

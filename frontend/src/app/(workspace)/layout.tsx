@@ -198,7 +198,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
           {/* Portal Switcher Link */}
           <Link href="/portal" className="hidden lg:inline-flex">
-            <Badge variant="outline" className="text-[11px] border-accent/40 text-accent hover:bg-accent/10 cursor-pointer">
+            <Badge variant="secondary" className="text-[11px] border-accent/40 text-accent hover:bg-accent/10 cursor-pointer">
               Customer Portal &rarr;
             </Badge>
           </Link>

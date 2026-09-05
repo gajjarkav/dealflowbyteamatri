@@ -144,7 +144,7 @@ export default function DashboardPage() {
                         </span>
                       </td>
                       <td className="p-3">
-                        <Badge variant="outline" className={`font-mono text-[10px] ${stageColors[q.stage]}`}>
+                        <Badge variant="secondary" className={`font-mono text-[10px] ${stageColors[q.stage]}`}>
                           {q.stage}
                         </Badge>
                       </td>

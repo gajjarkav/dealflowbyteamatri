@@ -46,7 +46,7 @@ export default function FulfillmentPage() {
       key: "warehouseCode",
       header: "Logistics Origin",
       render: (f) => (
-        <Badge variant="outline" className="font-mono text-xs border-border">
+        <Badge variant="secondary" className="font-mono text-xs border-border">
           {f.warehouseCode}
         </Badge>
       )
@@ -68,7 +68,7 @@ export default function FulfillmentPage() {
         }[f.status]
 
         return (
-          <Badge variant="outline" className={`font-mono text-xs ${statusColors}`}>
+          <Badge variant="secondary" className={`font-mono text-xs ${statusColors}`}>
             {f.status}
           </Badge>
         )
@@ -105,7 +105,7 @@ export default function FulfillmentPage() {
           </p>
         </div>
 
-        <Badge variant="outline" className="font-mono text-xs">
+        <Badge variant="secondary" className="font-mono text-xs">
           Odoo Warehouse Synced
         </Badge>
       </div>

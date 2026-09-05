@@ -116,7 +116,7 @@ export default function ProductsPage() {
       key: "category",
       header: "Category",
       render: (p) => (
-        <Badge variant="outline" className="text-xs font-mono">
+        <Badge variant="secondary" className="text-xs font-mono">
           {p.category}
         </Badge>
       )

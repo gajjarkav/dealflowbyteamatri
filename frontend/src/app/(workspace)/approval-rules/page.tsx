@@ -96,7 +96,7 @@ export default function ApprovalRulesPage() {
         }[r.riskLevel]
 
         return (
-          <Badge variant="outline" className={`font-mono text-xs ${riskColors}`}>
+          <Badge variant="secondary" className={`font-mono text-xs ${riskColors}`}>
             {r.riskLevel.toUpperCase()}
           </Badge>
         )

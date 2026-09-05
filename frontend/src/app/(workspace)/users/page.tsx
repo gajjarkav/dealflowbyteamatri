@@ -95,7 +95,7 @@ export default function UsersPage() {
           Rep: "border-border text-text-secondary bg-surface"
         }
         return (
-          <Badge variant="outline" className={`font-mono text-xs ${colors[u.role]}`}>
+          <Badge variant="secondary" className={`font-mono text-xs ${colors[u.role]}`}>
             {u.role}
           </Badge>
         )

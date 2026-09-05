@@ -83,7 +83,7 @@ export default function WarehousesPage() {
       key: "warehouseCode",
       header: "Hub Location",
       render: (s) => (
-        <Badge variant="outline" className="font-mono text-xs border-border">
+        <Badge variant="secondary" className="font-mono text-xs border-border">
           {s.warehouseCode}
         </Badge>
       )

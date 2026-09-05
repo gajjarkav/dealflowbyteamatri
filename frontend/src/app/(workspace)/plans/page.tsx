@@ -73,7 +73,7 @@ export default function SubscriptionPlansPage() {
             <div>
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="text-lg font-bold text-text-primary">{plan.name}</h3>
-                <Badge variant="outline" className="font-mono text-[10px]">
+                <Badge variant="secondary" className="font-mono text-[10px]">
                   {plan.code}
                 </Badge>
               </div>

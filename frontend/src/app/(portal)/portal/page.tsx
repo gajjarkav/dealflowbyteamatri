@@ -69,7 +69,7 @@ export default function CustomerPortalPage() {
         </div>
 
         <Badge
-          variant="outline"
+          variant="secondary"
           className={`font-mono text-xs py-1 px-3 ${
             accepted || quotation.stage === "Accepted"
               ? "border-emerald-500/50 text-emerald-600 bg-emerald-500/5"

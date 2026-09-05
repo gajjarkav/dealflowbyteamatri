@@ -24,6 +24,8 @@ export interface CustomerItem {
   creditLimit: number
   totalSpent: number
   status: "Active" | "Under Review"
+  industry: string
+  accountManagerId: string
 }
 
 export interface ProductItem {
@@ -56,6 +58,9 @@ export interface PriceListItem {
   description: string
   ruleCount: number
   isDefault: boolean
+  ruleType: "Discount" | "Markup" | "Formula"
+  modifierPercent: number
+  active: boolean
 }
 
 export interface ApprovalRuleItem {
@@ -134,6 +139,10 @@ export interface QuotationItem {
   createdDate: string
   expiryDate: string
   notes?: string
+  customerId: string
+  totalValue: number
+  items: { productId: string, quantity: number, finalPrice: number, discountPercent: number }[]
+  status: string
 }
 
 export interface InvoiceItem {
@@ -167,11 +176,11 @@ const INITIAL_USERS: UserItem[] = [
 ]
 
 const INITIAL_CUSTOMERS: CustomerItem[] = [
-  { id: "cust-1", name: "Stripe Enterprise", contactPerson: "Patrick Collison", email: "procurement@stripe.com", phone: "+1 (415) 890-1234", tier: "Platinum", currency: "USD", creditLimit: 500000, totalSpent: 1240000, status: "Active" },
-  { id: "cust-2", name: "Datadog Cloud Ops", contactPerson: "Olivier Pomel", email: "it-deals@datadoghq.com", phone: "+1 (212) 345-9876", tier: "Gold", currency: "USD", creditLimit: 250000, totalSpent: 680000, status: "Active" },
-  { id: "cust-3", name: "Snowflake Computing", contactPerson: "Benoit Dageville", email: "billing@snowflake.com", phone: "+1 (650) 456-7890", tier: "Gold", currency: "USD", creditLimit: 300000, totalSpent: 920000, status: "Active" },
-  { id: "cust-4", name: "Vercel Frontends", contactPerson: "Guillermo Rauch", email: "finance@vercel.com", phone: "+1 (415) 678-1122", tier: "Silver", currency: "USD", creditLimit: 100000, totalSpent: 310000, status: "Active" },
-  { id: "cust-5", name: "Linear Systems Inc", contactPerson: "Karri Saarinen", email: "ops@linear.app", phone: "+1 (415) 789-2233", tier: "Bronze", currency: "USD", creditLimit: 50000, totalSpent: 85000, status: "Active" }
+  { id: "cust-1", name: "Stripe Enterprise", contactPerson: "Patrick Collison", email: "procurement@stripe.com", phone: "+1 (415) 890-1234", tier: "Platinum", currency: "USD", creditLimit: 500000, totalSpent: 1240000, status: "Active", industry: "Technology", accountManagerId: "usr-1" },
+  { id: "cust-2", name: "Datadog Cloud Ops", contactPerson: "Olivier Pomel", email: "it-deals@datadoghq.com", phone: "+1 (212) 345-9876", tier: "Gold", currency: "USD", creditLimit: 250000, totalSpent: 680000, status: "Active", industry: "Cloud", accountManagerId: "usr-2" },
+  { id: "cust-3", name: "Snowflake Computing", contactPerson: "Benoit Dageville", email: "billing@snowflake.com", phone: "+1 (650) 456-7890", tier: "Gold", currency: "USD", creditLimit: 300000, totalSpent: 920000, status: "Active", industry: "Data", accountManagerId: "usr-3" },
+  { id: "cust-4", name: "Vercel Frontends", contactPerson: "Guillermo Rauch", email: "finance@vercel.com", phone: "+1 (415) 678-1122", tier: "Silver", currency: "USD", creditLimit: 100000, totalSpent: 310000, status: "Active", industry: "Frontend", accountManagerId: "usr-4" },
+  { id: "cust-5", name: "Linear Systems Inc", contactPerson: "Karri Saarinen", email: "ops@linear.app", phone: "+1 (415) 789-2233", tier: "Bronze", currency: "USD", creditLimit: 50000, totalSpent: 85000, status: "Active", industry: "SaaS", accountManagerId: "usr-5" }
 ]
 
 const INITIAL_PRODUCTS: ProductItem[] = [
@@ -191,9 +200,9 @@ const INITIAL_CATEGORY_CEILINGS: CategoryCeilingItem[] = [
 ]
 
 const INITIAL_PRICELISTS: PriceListItem[] = [
-  { id: "pl-1", name: "Global Standard Enterprise (USD)", code: "PL-STD-USD", currency: "USD", description: "Default benchmark pricing for North American & Global tier deals.", ruleCount: 24, isDefault: true },
-  { id: "pl-2", name: "EMEA Direct Accounts (EUR)", code: "PL-EMEA-EUR", currency: "EUR", description: "Currency adjusted with localized SLA multipliers for EU zone.", ruleCount: 18, isDefault: false },
-  { id: "pl-3", name: "Strategic Global Partner (USD)", code: "PL-PARTNER", currency: "USD", description: "Wholesale margin schedule for accredited systems integrators.", ruleCount: 30, isDefault: false }
+  { id: "pl-1", name: "Global Standard Enterprise (USD)", code: "PL-STD-USD", currency: "USD", description: "Default benchmark pricing for North American & Global tier deals.", ruleCount: 24, isDefault: true, ruleType: "Discount", modifierPercent: 0, active: true },
+  { id: "pl-2", name: "EMEA Direct Accounts (EUR)", code: "PL-EMEA-EUR", currency: "EUR", description: "Currency adjusted with localized SLA multipliers for EU zone.", ruleCount: 18, isDefault: false, ruleType: "Discount", modifierPercent: 5, active: true },
+  { id: "pl-3", name: "Strategic Global Partner (USD)", code: "PL-PARTNER", currency: "USD", description: "Wholesale margin schedule for accredited systems integrators.", ruleCount: 30, isDefault: false, ruleType: "Discount", modifierPercent: 10, active: true }
 ]
 
 const INITIAL_APPROVAL_RULES: ApprovalRuleItem[] = [
@@ -238,12 +247,12 @@ const INITIAL_SETTINGS: SystemSettings = {
 }
 
 const INITIAL_QUOTATIONS: QuotationItem[] = [
-  { id: "quot-1", dealRef: "Q-1042", title: "Enterprise AI Compute Stack Deployment", customerName: "Stripe Enterprise", customerTier: "Platinum", repName: "Alex Rivera", totalAmount: 48500, discountPercent: 12.5, grossMarginPercent: 42.8, stage: "Pending Approval", riskLevel: "Medium", itemsCount: 4, createdDate: "2026-09-02", expiryDate: "2026-09-16", notes: "Customer requested expedited shipping on H100 cluster." },
-  { id: "quot-2", dealRef: "Q-1043", title: "Core Orchestrator + HSM Security Vault", customerName: "Datadog Cloud Ops", customerTier: "Gold", repName: "Elena Rostova", totalAmount: 27500, discountPercent: 8.0, grossMarginPercent: 68.4, stage: "Approved", riskLevel: "Low", itemsCount: 2, createdDate: "2026-09-03", expiryDate: "2026-09-17" },
-  { id: "quot-3", dealRef: "Q-1044", title: "Dual EPYC Infrastructure Expansion", customerName: "Snowflake Computing", customerTier: "Gold", repName: "David Kim", totalAmount: 67200, discountPercent: 18.0, grossMarginPercent: 34.2, stage: "Customer Review", riskLevel: "High", itemsCount: 6, createdDate: "2026-09-01", expiryDate: "2026-09-15", notes: "Negotiating counter-offer on volume tier." },
-  { id: "quot-4", dealRef: "Q-1045", title: "Frontend Edge Routing Cluster Upgrade", customerName: "Vercel Frontends", customerTier: "Silver", repName: "Elena Rostova", totalAmount: 18400, discountPercent: 5.0, grossMarginPercent: 52.0, stage: "Accepted", riskLevel: "Low", itemsCount: 3, createdDate: "2026-08-28", expiryDate: "2026-09-12" },
-  { id: "quot-5", dealRef: "Q-1046", title: "Autonomous Deal Engine Pilot", customerName: "Linear Systems Inc", customerTier: "Bronze", repName: "Alex Rivera", totalAmount: 12500, discountPercent: 0.0, grossMarginPercent: 78.5, stage: "Done", riskLevel: "Low", itemsCount: 1, createdDate: "2026-08-25", expiryDate: "2026-09-08" },
-  { id: "quot-6", dealRef: "Q-1047", title: "High-Frequency Compute Expansion", customerName: "Stripe Enterprise", customerTier: "Platinum", repName: "David Kim", totalAmount: 112000, discountPercent: 22.0, grossMarginPercent: 31.0, stage: "Draft", riskLevel: "High", itemsCount: 8, createdDate: "2026-09-04", expiryDate: "2026-09-20" }
+  { id: "quot-1", dealRef: "Q-1042", title: "Enterprise AI Compute Stack Deployment", customerName: "Stripe Enterprise", customerTier: "Platinum", repName: "Alex Rivera", totalAmount: 48500, discountPercent: 12.5, grossMarginPercent: 42.8, stage: "Pending Approval", riskLevel: "Medium", itemsCount: 4, createdDate: "2026-09-02", expiryDate: "2026-09-16", notes: "Customer requested expedited shipping on H100 cluster.", customerId: "cust-1", totalValue: 48500, items: [{ productId: "prod-1", quantity: 2, finalPrice: 24250, discountPercent: 12.5 }], status: "Draft" },
+  { id: "quot-2", dealRef: "Q-1043", title: "Core Orchestrator + HSM Security Vault", customerName: "Datadog Cloud Ops", customerTier: "Gold", repName: "Elena Rostova", totalAmount: 27500, discountPercent: 8.0, grossMarginPercent: 68.4, stage: "Approved", riskLevel: "Low", itemsCount: 2, createdDate: "2026-09-03", expiryDate: "2026-09-17", customerId: "cust-2", totalValue: 27500, items: [], status: "Draft" },
+  { id: "quot-3", dealRef: "Q-1044", title: "Dual EPYC Infrastructure Expansion", customerName: "Snowflake Computing", customerTier: "Gold", repName: "David Kim", totalAmount: 67200, discountPercent: 18.0, grossMarginPercent: 34.2, stage: "Customer Review", riskLevel: "High", itemsCount: 6, createdDate: "2026-09-01", expiryDate: "2026-09-15", notes: "Negotiating counter-offer on volume tier.", customerId: "cust-3", totalValue: 67200, items: [], status: "Draft" },
+  { id: "quot-4", dealRef: "Q-1045", title: "Frontend Edge Routing Cluster Upgrade", customerName: "Vercel Frontends", customerTier: "Silver", repName: "Elena Rostova", totalAmount: 18400, discountPercent: 5.0, grossMarginPercent: 52.0, stage: "Accepted", riskLevel: "Low", itemsCount: 3, createdDate: "2026-08-28", expiryDate: "2026-09-12", customerId: "cust-4", totalValue: 18400, items: [], status: "Draft" },
+  { id: "quot-5", dealRef: "Q-1046", title: "Autonomous Deal Engine Pilot", customerName: "Linear Systems Inc", customerTier: "Bronze", repName: "Alex Rivera", totalAmount: 12500, discountPercent: 0.0, grossMarginPercent: 78.5, stage: "Done", riskLevel: "Low", itemsCount: 1, createdDate: "2026-08-25", expiryDate: "2026-09-08", customerId: "cust-5", totalValue: 12500, items: [], status: "Draft" },
+  { id: "quot-6", dealRef: "Q-1047", title: "High-Frequency Compute Expansion", customerName: "Stripe Enterprise", customerTier: "Platinum", repName: "David Kim", totalAmount: 112000, discountPercent: 22.0, grossMarginPercent: 31.0, stage: "Draft", riskLevel: "High", itemsCount: 8, createdDate: "2026-09-04", expiryDate: "2026-09-20", customerId: "cust-1", totalValue: 112000, items: [], status: "Draft" }
 ]
 
 const INITIAL_INVOICES: InvoiceItem[] = [
@@ -379,6 +388,16 @@ class DataStore {
   // Quotation stage progression
   updateQuotationStage(id: string, stage: QuotationItem["stage"]) {
     this.quotations = this.quotations.map(q => q.id === id ? { ...q, stage } : q)
+    this.notify()
+  }
+
+  updateQuotation(id: string, updates: Partial<QuotationItem>) {
+    this.quotations = this.quotations.map(q => q.id === id ? { ...q, ...updates } : q)
+    this.notify()
+  }
+
+  updatePricelist(id: string, updates: Partial<PriceListItem>) {
+    this.pricelists = this.pricelists.map(p => p.id === id ? { ...p, ...updates } : p)
     this.notify()
   }
 

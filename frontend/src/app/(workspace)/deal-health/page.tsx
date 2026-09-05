@@ -59,7 +59,7 @@ export default function DealHealthPage() {
             <h2 className="text-base font-semibold text-text-primary">Active Risk Diagnostic Ledger</h2>
             <p className="text-xs text-text-secondary">Deals flagged for variance, discount escalation, or stalled timeline</p>
           </div>
-          <Badge variant="outline" className="font-mono text-xs border-accent text-accent">
+          <Badge variant="secondary" className="font-mono text-xs border-accent text-accent">
             {highRiskDeals.length} Flagged
           </Badge>
         </div>

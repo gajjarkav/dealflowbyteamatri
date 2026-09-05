@@ -44,7 +44,7 @@ export default function DiscountTiersPage() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-text-primary">Customer Tier Baselines</h2>
-              <Badge variant="outline" className="font-mono text-xs">Standard SLA</Badge>
+              <Badge variant="secondary" className="font-mono text-xs">Standard SLA</Badge>
             </div>
             <p className="text-xs text-text-secondary mb-6 leading-relaxed">
               Default maximum discount allowable without requiring manual deal desk escalation.
@@ -217,19 +217,19 @@ export default function DiscountTiersPage() {
                 <td className="p-3 text-text-primary">Within Category Ceiling Limit</td>
                 <td className="p-3">&ge; 40.0%</td>
                 <td className="p-3 text-emerald-600 font-semibold">No Approval Needed (Instant Lock)</td>
-                <td className="p-3"><Badge variant="outline" className="border-emerald-500/50 text-emerald-600">LOW</Badge></td>
+                <td className="p-3"><Badge variant="secondary" className="border-emerald-500/50 text-emerald-600">LOW</Badge></td>
               </tr>
               <tr>
                 <td className="p-3 text-text-primary">Over Ceiling &le; 25.0%</td>
                 <td className="p-3">&ge; 32.0%</td>
                 <td className="p-3 text-blue-600 font-semibold">Sales Manager Sign-off</td>
-                <td className="p-3"><Badge variant="outline" className="border-blue-500/50 text-blue-600">MEDIUM</Badge></td>
+                <td className="p-3"><Badge variant="secondary" className="border-blue-500/50 text-blue-600">MEDIUM</Badge></td>
               </tr>
               <tr>
                 <td className="p-3 text-text-primary">Over Ceiling &gt; 25.0% or Margin &lt; 32%</td>
                 <td className="p-3">&ge; 25.0%</td>
                 <td className="p-3 text-accent font-semibold">Sales Manager + Finance Dual Approval</td>
-                <td className="p-3"><Badge variant="outline" className="border-accent text-accent">HIGH</Badge></td>
+                <td className="p-3"><Badge variant="secondary" className="border-accent text-accent">HIGH</Badge></td>
               </tr>
             </tbody>
           </table>
