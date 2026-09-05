@@ -1,23 +1,32 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useCurrentUser } from "@/lib/auth/context"
-import { useDataStore } from "@/lib/data/useDataStore"
-import { useToast } from "@/components/ui/toast"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { Role } from "@/lib/data/mockStore"
+import { Button } from "@/components/ui/button"
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { logout } = useCurrentUser()
-  const store = useDataStore()
-  const { toast } = useToast()
+  const { logout, user, isLoading } = useCurrentUser()
   const [backendMenuOpen, setBackendMenuOpen] = useState(false)
 
-  const currentRole = store.currentRole
+  // Auth guard: redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login")
+    }
+  }, [isLoading, user, router])
+
+  // Map real backend roles to permission sets
+  const roleAlias = user?.role === "admin" ? "Admin"
+    : user?.role === "sales_manager" ? "Manager"
+    : user?.role === "finance" ? "Finance"
+    : user?.role === "sales_rep" ? "Rep"
+    : "Rep"
+
+  const currentRole = roleAlias
 
   // Matrix of role permissions for workspace navigation
   const canAccess = (item: string) => {
@@ -55,23 +64,15 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     }
   }
 
-  const handleReloadData = () => {
-    store.resetAll()
-    toast({
-      title: "Data Store Reloaded",
-      description: "In-memory database has been reset to initial seed state.",
-      type: "info"
-    })
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-text-muted text-sm font-mono">Loading DealFlow360…</div>
+      </div>
+    )
   }
 
-  const handleRoleChange = (newRole: Role) => {
-    store.setRole(newRole)
-    toast({
-      title: `Role Switched to ${newRole}`,
-      description: `Navigation and permission rules updated for ${newRole}.`,
-      type: "success"
-    })
-  }
+  if (!user) return null
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", id: "dashboard" },
@@ -171,45 +172,27 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
         {/* Right: Actions, Role Switcher, Profile */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Reload Data Button */}
-          <Button
-            variant="ghost"
-            onClick={handleReloadData}
-            className="h-8 px-2.5 text-xs text-text-secondary hover:text-accent border border-border"
-            title="Reset in-memory data to defaults"
-          >
-            <span className="text-xs mr-1">&#8635;</span> Reload Data
-          </Button>
-
-          {/* Role Switcher */}
-          <div className="flex items-center gap-1.5 bg-background border border-border rounded px-2 py-1">
-            <span className="text-[11px] text-text-muted font-mono hidden sm:inline">Role:</span>
-            <select
-              value={currentRole}
-              onChange={(e) => handleRoleChange(e.target.value as Role)}
-              className="bg-transparent text-xs font-semibold text-accent focus:outline-none cursor-pointer"
-            >
-              <option value="Admin">Admin</option>
-              <option value="Manager">Sales Manager</option>
-              <option value="Finance">Finance / Ops</option>
-              <option value="Rep">Sales Rep</option>
-            </select>
-          </div>
+          {/* Live user info badge */}
+          {user && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-background border border-border rounded px-2.5 py-1">
+              <span className="text-[11px] text-text-muted font-mono">{user.full_name}</span>
+              <Badge variant="secondary" className="text-[10px] font-mono border-accent/40 text-accent py-0">
+                {currentRole}
+              </Badge>
+            </div>
+          )}
 
           {/* Portal Switcher Link */}
           <Link href="/portal" className="hidden lg:inline-flex">
             <Badge variant="secondary" className="text-[11px] border-accent/40 text-accent hover:bg-accent/10 cursor-pointer">
-              Customer Portal &rarr;
+              Portal &rarr;
             </Badge>
           </Link>
 
-          {/* User Sign Out */}
+          {/* Logout */}
           <Button
             variant="ghost"
-            onClick={async () => {
-              await logout()
-              router.push("/login")
-            }}
+            onClick={async () => { await logout() }}
             className="h-8 px-2 text-xs text-text-muted hover:text-danger"
           >
             Logout

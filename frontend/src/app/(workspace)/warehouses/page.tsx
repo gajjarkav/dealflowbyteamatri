@@ -1,237 +1,297 @@
 "use client"
-import React, { useState } from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
-import { DataTable, Column } from "@/components/ui/data-table"
+import React, { useState, useEffect, useCallback } from "react"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Dialog } from "@/components/ui/dialog"
+import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
-import type { WarehouseItem, StockItem } from "@/lib/data/mockStore"
+import {
+  apiListWarehouses,
+  apiCreateWarehouse,
+  apiGetWarehouseStock,
+  apiAdjustStock,
+  type WarehouseResponse,
+  type StockLevelResponse,
+} from "@/lib/api/warehouses"
 
 export default function WarehousesPage() {
-  const store = useDataStore()
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState<"warehouses" | "stock">("stock")
-  const [adjustingStock, setAdjustingStock] = useState<StockItem | null>(null)
-  const [deltaQuantity, setDeltaQuantity] = useState(5)
-  const [reason, setReason] = useState("Inbound Restock")
+  const [warehouses, setWarehouses] = useState<WarehouseResponse[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<"warehouses" | "stock">("warehouses")
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string | null>(null)
+  const [stock, setStock] = useState<StockLevelResponse[]>([])
+  const [stockLoading, setStockLoading] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newWh, setNewWh] = useState({ name: "", location: "" })
+  const [saving, setSaving] = useState(false)
+  const [adjustItem, setAdjustItem] = useState<StockLevelResponse | null>(null)
+  const [adjustDelta, setAdjustDelta] = useState(5)
+  const [adjustReason, setAdjustReason] = useState("inbound")
 
-  const handlePerformAdjust = () => {
-    if (!adjustingStock) return
-    store.adjustStock(adjustingStock.id, deltaQuantity)
-    toast({
-      title: "Stock Level Adjusted",
-      description: `${adjustingStock.productName} (${adjustingStock.warehouseCode}) updated by ${deltaQuantity > 0 ? `+${deltaQuantity}` : deltaQuantity} units.`,
-      type: "success"
-    })
-    setAdjustingStock(null)
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await apiListWarehouses({ size: 50 })
+      setWarehouses(res.items)
+      setTotal(res.total)
+      if (res.items.length > 0 && !selectedWarehouseId) {
+        setSelectedWarehouseId(res.items[0].id)
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to load warehouses", type: "error" })
+    } finally {
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
+
+  useEffect(() => {
+    if (!selectedWarehouseId) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStockLoading(true)
+    apiGetWarehouseStock(selectedWarehouseId)
+      .then(setStock)
+      .catch(() => setStock([]))
+      .finally(() => setStockLoading(false))
+  }, [selectedWarehouseId])
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newWh.name) return
+    setSaving(true)
+    try {
+      await apiCreateWarehouse({ name: newWh.name, location: newWh.location || undefined })
+      toast({ title: "Warehouse Created" })
+      setCreateOpen(false)
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const warehouseColumns: Column<WarehouseItem>[] = [
-    {
-      key: "code",
-      header: "Hub Code",
-      render: (w) => <span className="font-mono text-xs font-bold text-text-primary">{w.code}</span>
-    },
-    {
-      key: "name",
-      header: "Warehouse Name",
-      render: (w) => (
-        <div>
-          <div className="font-semibold text-text-primary">{w.name}</div>
-          <div className="text-xs text-text-secondary">{w.location}</div>
-        </div>
-      )
-    },
-    {
-      key: "capacityPercent",
-      header: "Utilization",
-      render: (w) => (
-        <div className="flex items-center gap-2">
-          <div className="w-20 bg-background border border-border h-2 rounded overflow-hidden">
-            <div className="bg-accent h-full" style={{ width: `${w.capacityPercent}%` }} />
-          </div>
-          <span className="font-mono text-xs font-medium">{w.capacityPercent}%</span>
-        </div>
-      )
-    },
-    {
-      key: "totalSkus",
-      header: "Managed SKUs",
-      render: (w) => <span className="font-mono text-xs">{w.totalSkus} SKUs</span>
-    },
-    {
-      key: "manager",
-      header: "Logistics Lead",
-      render: (w) => <span className="text-xs text-text-secondary">{w.manager}</span>
+  const handleAdjust = async () => {
+    if (!adjustItem || !selectedWarehouseId) return
+    setSaving(true)
+    try {
+      await apiAdjustStock(selectedWarehouseId, {
+        product_id: adjustItem.product_id,
+        delta: adjustDelta,
+        reason: adjustReason,
+      })
+      toast({ title: "Stock Adjusted", description: `Updated by ${adjustDelta > 0 ? "+" : ""}${adjustDelta}` })
+      setAdjustItem(null)
+      if (selectedWarehouseId) {
+        apiGetWarehouseStock(selectedWarehouseId).then(setStock)
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Adjustment failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSaving(false)
     }
-  ]
-
-  const stockColumns: Column<StockItem>[] = [
-    {
-      key: "sku",
-      header: "SKU Code",
-      render: (s) => <span className="font-mono text-xs font-semibold text-text-primary">{s.sku}</span>
-    },
-    {
-      key: "productName",
-      header: "Product Title",
-      render: (s) => <span className="font-medium text-text-primary">{s.productName}</span>
-    },
-    {
-      key: "warehouseCode",
-      header: "Hub Location",
-      render: (s) => (
-        <Badge variant="secondary" className="font-mono text-xs border-border">
-          {s.warehouseCode}
-        </Badge>
-      )
-    },
-    {
-      key: "onHand",
-      header: "On Hand",
-      render: (s) => <span className="font-mono text-xs font-bold">{s.onHand}</span>
-    },
-    {
-      key: "reserved",
-      header: "Reserved (Quotes)",
-      render: (s) => <span className="font-mono text-xs text-amber-600">{s.reserved}</span>
-    },
-    {
-      key: "available",
-      header: "Available to Promise",
-      render: (s) => (
-        <span className="font-mono text-xs font-bold text-emerald-600">
-          {s.available}
-        </span>
-      )
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      className: "text-right",
-      render: (s) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="ghost"
-            className="h-7 px-2.5 text-xs text-accent hover:text-accent font-medium"
-            onClick={() => {
-              setAdjustingStock(s)
-              setDeltaQuantity(5)
-            }}
-          >
-            Adjust Stock
-          </Button>
-        </div>
-      )
-    }
-  ]
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Warehouses & Live Stock</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Warehouses &amp; Live Stock</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Real-time multi-warehouse inventory sync, quote reservation locks, and manual balance adjustments.
+            Multi-warehouse inventory sync, quote reservation locks, and manual adjustments.
           </p>
         </div>
-
-        <div className="flex bg-surface border border-border rounded p-0.5">
-          <button
-            onClick={() => setActiveTab("stock")}
-            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-              activeTab === "stock" ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Inventory On-Hand ({store.stock.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("warehouses")}
-            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-              activeTab === "warehouses" ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Logistics Hubs ({store.warehouses.length})
-          </button>
+        <div className="flex items-center gap-3">
+          <div className="flex bg-surface border border-border rounded p-0.5">
+            {(["warehouses", "stock"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1 text-xs font-medium rounded capitalize transition-colors ${activeTab === tab ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"}`}
+              >
+                {tab === "warehouses" ? `Logistics Hubs (${total})` : `Stock Ledger`}
+              </button>
+            ))}
+          </div>
+          <Button onClick={() => setCreateOpen(true)}>+ Add Warehouse</Button>
         </div>
       </div>
 
-      {activeTab === "stock" ? (
-        <DataTable
-          data={store.stock}
-          columns={stockColumns}
-          searchPlaceholder="Search inventory by SKU, product, or hub..."
-          searchKey={(s) => `${s.sku} ${s.productName} ${s.warehouseCode}`}
-          title="Warehouse Stock Ledger"
-          subtitle="Real-time availability synced with Odoo ERP"
-        />
-      ) : (
-        <DataTable
-          data={store.warehouses}
-          columns={warehouseColumns}
-          title="Fulfillment Distribution Hubs"
-          subtitle="Regional distribution nodes for split-order fulfillment"
-        />
+      {/* Warehouses Tab */}
+      {activeTab === "warehouses" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {loading ? (
+            <div className="col-span-3 text-center py-12 text-text-muted text-sm">Loading warehouses…</div>
+          ) : warehouses.length === 0 ? (
+            <div className="col-span-3 text-center py-12 text-text-muted text-sm border border-dashed border-border rounded-lg">
+              No warehouses yet. Add your first hub!
+            </div>
+          ) : warehouses.map((wh) => (
+            <Card
+              key={wh.id}
+              onClick={() => { setSelectedWarehouseId(wh.id); setActiveTab("stock") }}
+              className={`p-5 border-border cursor-pointer hover:border-accent/60 transition-all ${selectedWarehouseId === wh.id ? "border-accent ring-1 ring-accent" : ""}`}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="font-bold text-text-primary">{wh.name}</div>
+                  {wh.location && <div className="text-xs text-text-secondary mt-0.5">{wh.location}</div>}
+                </div>
+                <Badge variant={wh.is_active ? "default" : "secondary"} className="text-xs">
+                  {wh.is_active ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+              <div className="text-xs text-text-muted font-mono">
+                ID: {wh.id.slice(0, 8)}…
+              </div>
+              <div className="mt-3 text-xs text-accent font-medium">View Stock →</div>
+            </Card>
+          ))}
+        </div>
       )}
 
-      {/* Quick Adjust Dialog */}
-      <Dialog
-        isOpen={!!adjustingStock}
-        onClose={() => setAdjustingStock(null)}
-        title="Adjust Inventory Balance"
-        subtitle={adjustingStock ? `${adjustingStock.productName} [${adjustingStock.warehouseCode}]` : ""}
+      {/* Stock Tab */}
+      {activeTab === "stock" && (
+        <div className="space-y-4">
+          {/* Warehouse Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-text-secondary">Viewing stock for:</span>
+            <select
+              value={selectedWarehouseId || ""}
+              onChange={(e) => setSelectedWarehouseId(e.target.value)}
+              className="h-8 rounded border border-border bg-background px-3 text-xs text-text-primary focus:outline-none focus:border-accent"
+            >
+              {warehouses.map((wh) => (
+                <option key={wh.id} value={wh.id}>{wh.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {stockLoading ? (
+            <div className="text-center py-12 text-text-muted text-sm">Loading stock…</div>
+          ) : stock.length === 0 ? (
+            <div className="text-center py-12 border border-dashed border-border rounded-lg text-text-muted text-sm">
+              No stock entries for this warehouse.
+            </div>
+          ) : (
+            <div className="border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
+                  <tr>
+                    <th className="px-4 py-3">Product ID</th>
+                    <th className="px-4 py-3">On Hand</th>
+                    <th className="px-4 py-3">Reserved</th>
+                    <th className="px-4 py-3">Available</th>
+                    <th className="px-4 py-3">Reorder Point</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {stock.map((s) => {
+                    const available = Math.max(0, s.qty_on_hand - s.qty_reserved)
+                    return (
+                      <tr key={s.id} className="hover:bg-surface/60">
+                        <td className="px-4 py-3 font-mono text-xs text-text-muted">{s.product_id.slice(0, 12)}…</td>
+                        <td className="px-4 py-3 font-mono font-bold text-text-primary">{s.qty_on_hand}</td>
+                        <td className="px-4 py-3 font-mono text-amber-600">{s.qty_reserved}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-emerald-600">{available}</td>
+                        <td className="px-4 py-3 font-mono text-text-muted">{s.reorder_point}</td>
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            variant="ghost"
+                            className="h-7 px-2.5 text-xs text-accent hover:text-accent font-medium"
+                            onClick={() => { setAdjustItem(s); setAdjustDelta(5) }}
+                          >
+                            Adjust
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create Warehouse Drawer */}
+      <FormDrawer
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Add Logistics Hub"
+        subtitle="Register a new warehouse or distribution center"
         footerActions={
           <>
-            <Button variant="ghost" onClick={() => setAdjustingStock(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handlePerformAdjust}>
-              Apply Stock Delta
-            </Button>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={saving}>{saving ? "Creating…" : "Create Warehouse"}</Button>
           </>
         }
       >
-        {adjustingStock && (
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Warehouse Name *</label>
+            <Input value={newWh.name} onChange={(e) => setNewWh({ ...newWh, name: e.target.value })} placeholder="e.g. Mumbai Central Hub" required />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Location / Address</label>
+            <Input value={newWh.location} onChange={(e) => setNewWh({ ...newWh, location: e.target.value })} placeholder="e.g. MIDC, Mumbai, India" />
+          </div>
+        </form>
+      </FormDrawer>
+
+      {/* Adjust Stock Dialog */}
+      <Dialog
+        isOpen={!!adjustItem}
+        onClose={() => setAdjustItem(null)}
+        title="Adjust Inventory Balance"
+        subtitle={adjustItem ? `Product: ${adjustItem.product_id.slice(0, 16)}…` : ""}
+        footerActions={
+          <>
+            <Button variant="ghost" onClick={() => setAdjustItem(null)}>Cancel</Button>
+            <Button onClick={handleAdjust} disabled={saving}>{saving ? "Applying…" : "Apply Delta"}</Button>
+          </>
+        }
+      >
+        {adjustItem && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 p-3 bg-background border border-border rounded text-xs font-mono">
               <div>
                 <span className="text-text-secondary block">Current On-Hand:</span>
-                <span className="text-base font-bold text-text-primary">{adjustingStock.onHand}</span>
+                <span className="text-base font-bold text-text-primary">{adjustItem.qty_on_hand}</span>
               </div>
               <div>
-                <span className="text-text-secondary block">Projected New Total:</span>
-                <span className="text-base font-bold text-accent">
-                  {Math.max(0, adjustingStock.onHand + deltaQuantity)}
-                </span>
+                <span className="text-text-secondary block">Projected:</span>
+                <span className="text-base font-bold text-accent">{Math.max(0, adjustItem.qty_on_hand + adjustDelta)}</span>
               </div>
             </div>
-
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Adjustment Delta (+/-)</label>
-              <Input
-                type="number"
-                value={deltaQuantity}
-                onChange={(e) => setDeltaQuantity(Number(e.target.value))}
-                step={1}
-              />
-              <span className="text-[11px] text-text-muted mt-1 block">
-                Enter positive integer to add stock, negative to deduct.
-              </span>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Delta (+/-)</label>
+              <Input type="number" value={adjustDelta} onChange={(e) => setAdjustDelta(Number(e.target.value))} step={1} />
+              <span className="text-[11px] text-text-muted mt-1 block">Positive = add stock, negative = deduct.</span>
             </div>
-
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Audit Reason</label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Reason</label>
               <select
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm text-text-primary focus:outline-none focus:border-accent"
+                value={adjustReason}
+                onChange={(e) => setAdjustReason(e.target.value)}
+                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent"
               >
-                <option value="Inbound Restock">Inbound Restock / PO Receipt</option>
-                <option value="Physical Audit Correction">Physical Warehouse Audit Reconciliation</option>
-                <option value="Damaged / Written-off">Damaged / Written-Off Units</option>
-                <option value="Inter-warehouse Transfer">Inter-warehouse Rebalancing</option>
+                <option value="inbound">Inbound Restock / PO Receipt</option>
+                <option value="audit">Physical Warehouse Audit</option>
+                <option value="damaged">Damaged / Written-Off Units</option>
+                <option value="transfer">Inter-warehouse Transfer</option>
               </select>
             </div>
           </div>

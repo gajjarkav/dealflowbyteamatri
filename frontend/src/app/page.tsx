@@ -33,7 +33,7 @@ export default function LandingPage() {
       return
     }
     try {
-      await login(loginEmail)
+      await login(loginEmail, loginPassword)
     } catch {
       setLoginError("Failed to sign in. Please try again.")
     }
@@ -48,7 +48,13 @@ export default function LandingPage() {
     if (!/^\+?[0-9\s\-()]{7,15}$/.test(signupData.phone)) return setSignupError("Invalid phone number format.")
     
     try {
-      await signup(signupData)
+      await signup({
+        email: signupData.email,
+        password: signupData.password,
+        mobile_number: signupData.phone,
+        full_name: signupData.name,
+        company_name: "Default Company"
+      })
     } catch {
       setSignupError("Registration failed. Please try again.")
     }

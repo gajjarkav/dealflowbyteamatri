@@ -1,108 +1,141 @@
 "use client"
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import {
+  apiLogin,
+  apiLogout,
+  apiRegister,
+  apiVerifyEmail,
+  apiVerify2FA,
+  apiForgotPassword,
+  apiResetPassword,
+  apiResendOtp,
+} from "@/lib/api/auth"
+import { apiGetMe } from "@/lib/api/users"
+import { getRefreshToken, clearTokens } from "@/lib/api/client"
+import type { UserResponse } from "@/lib/api/users"
 
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-}
+// ── Context Types ──────────────────────────────────────────────────────────────
+
+export type { UserResponse as User }
 
 export interface SignupData {
-  name: string;
-  email: string;
-  password?: string;
-  phone: string;
+  full_name: string
+  email: string
+  password: string
+  mobile_number?: string
+  company_name: string
 }
 
 interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  login: (email: string) => Promise<void>;
-  logout: () => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
-  verifyOtp: (code: string) => Promise<void>;
-  sendOtp: (email: string) => Promise<void>;
+  user: UserResponse | null
+  isLoading: boolean
+  // Auth flows
+  login: (email: string, password: string) => Promise<{ requires2FA: boolean; email?: string }>
+  logout: () => Promise<void>
+  signup: (data: SignupData) => Promise<void>
+  verifyEmail: (email: string, code: string) => Promise<void>
+  verify2FA: (email: string, code: string) => Promise<void>
+  forgotPassword: (email: string) => Promise<void>
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<void>
+  resendOtp: (email: string, purpose: "signup" | "login_2fa" | "reset_password") => Promise<void>
+  refreshUser: () => Promise<void>
 }
+
+// ── Context ────────────────────────────────────────────────────────────────────
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<UserResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    // Check session on mount
-    fetch('/api/auth/me')
-      .then(res => res.json())
-      .then(data => {
-        if (data.user) setUser(data.user)
-      })
-      .finally(() => setIsLoading(false))
+  const refreshUser = useCallback(async () => {
+    try {
+      const me = await apiGetMe()
+      setUser(me)
+    } catch {
+      setUser(null)
+      clearTokens()
+    }
   }, [])
 
-  const login = async (email: string) => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
-    if (res.ok) {
-      // Don't set user yet. Login API checks credentials, we must verify OTP.
-      router.push('/verify-otp')
-    } else {
-      throw new Error("Invalid credentials")
+  // On mount: try to load current user using stored access token
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshUser().finally(() => setIsLoading(false))
+  }, [refreshUser])
+
+  const login = async (email: string, password: string) => {
+    const res = await apiLogin(email, password)
+    if ("requires_2fa" in res && res.requires_2fa) {
+      return { requires2FA: true, email: res.email }
     }
+    // Tokens already stored by apiLogin
+    await refreshUser()
+    return { requires2FA: false }
   }
 
   const signup = async (data: SignupData) => {
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (res.ok) {
-      // Send OTP after signup
-      router.push('/verify-otp')
-    } else {
-      throw new Error("Signup failed")
-    }
+    await apiRegister(data)
+    // After register, user needs to verify email OTP — navigate handled by page
   }
 
-  const sendOtp = async (email: string) => {
-    const res = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
-    if (!res.ok) throw new Error("Failed to send OTP")
+  const verifyEmail = async (email: string, code: string) => {
+    await apiVerifyEmail(email, code)
+    await refreshUser()
   }
 
-  const verifyOtp = async (code: string) => {
-    const res = await fetch('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code })
-    })
-    if (res.ok) {
-      const data = await res.json()
-      setUser(data.user)
-      router.push('/dashboard')
-    } else {
-      throw new Error("Invalid OTP")
-    }
+  const verify2FA = async (email: string, code: string) => {
+    await apiVerify2FA(email, code)
+    await refreshUser()
   }
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    const refresh = getRefreshToken()
+    if (refresh) {
+      await apiLogout(refresh).catch(() => {
+        clearTokens()
+      })
+    } else {
+      clearTokens()
+    }
     setUser(null)
-    router.push('/login')
+    router.push("/login")
+  }
+
+  const forgotPassword = async (email: string) => {
+    await apiForgotPassword(email)
+  }
+
+  const resetPassword = async (email: string, code: string, newPassword: string) => {
+    await apiResetPassword(email, code, newPassword)
+  }
+
+  const resendOtp = async (
+    email: string,
+    purpose: "signup" | "login_2fa" | "reset_password"
+  ) => {
+    await apiResendOtp(email, purpose)
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, signup, verifyOtp, sendOtp }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        login,
+        logout,
+        signup,
+        verifyEmail,
+        verify2FA,
+        forgotPassword,
+        resetPassword,
+        resendOtp,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

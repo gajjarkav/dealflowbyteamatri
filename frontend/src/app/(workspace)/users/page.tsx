@@ -1,237 +1,229 @@
 "use client"
-import React, { useState } from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
-import { DataTable, Column } from "@/components/ui/data-table"
+import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
-import type { UserItem, Role } from "@/lib/data/mockStore"
+import {
+  apiListUsers,
+  apiCreateUser,
+  apiUpdateUser,
+  apiDeactivateUser,
+  type UserResponse,
+  type Role,
+} from "@/lib/api/users"
+
+const ROLE_LABELS: Record<Role, string> = {
+  admin: "Admin",
+  sales_manager: "Sales Manager",
+  sales_rep: "Sales Rep",
+  finance: "Finance",
+  customer: "Customer",
+}
+
+const ROLE_COLORS: Record<Role, string> = {
+  admin: "border-purple-500/50 text-purple-600",
+  sales_manager: "border-blue-500/50 text-blue-600",
+  sales_rep: "border-emerald-500/50 text-emerald-600",
+  finance: "border-amber-500/50 text-amber-600",
+  customer: "border-border text-text-secondary",
+}
+
+const DEFAULT_FORM = { full_name: "", email: "", password: "", mobile_number: "", role: "sales_rep" as Role }
 
 export default function UsersPage() {
-  const store = useDataStore()
   const { toast } = useToast()
+  const [users, setUsers] = useState<UserResponse[]>([])
+  const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState<UserItem | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formData, setFormData] = useState(DEFAULT_FORM)
+  const [saving, setSaving] = useState(false)
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    role: "Rep" as Role,
-    status: "Active" as "Active" | "Deactivated"
-  })
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await apiListUsers()
+      setUsers(res)
+    } catch {
+      toast({ title: "Error", description: "Failed to load users", type: "error" })
+    } finally {
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const openCreateDrawer = () => {
-    setEditingUser(null)
-    setFormData({ name: "", email: "", phone: "", role: "Rep", status: "Active" })
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
+
+  const openCreate = () => {
+    setEditingId(null)
+    setFormData(DEFAULT_FORM)
     setDrawerOpen(true)
   }
 
-  const openEditDrawer = (user: UserItem) => {
-    setEditingUser(user)
-    setFormData({
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      status: user.status
-    })
+  const openEdit = (u: UserResponse) => {
+    setEditingId(u.id)
+    setFormData({ full_name: u.full_name, email: u.email, password: "", mobile_number: u.mobile_number || "", role: u.role })
     setDrawerOpen(true)
   }
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.name || !formData.email) {
-      toast({ title: "Validation Error", description: "Name and email are required.", type: "error" })
+    if (!formData.full_name || !formData.email) {
+      toast({ title: "Name and email required", type: "error" })
       return
     }
-
-    if (editingUser) {
-      store.updateUser(editingUser.id, formData)
-      toast({ title: "User Updated", description: `${formData.name} was successfully updated.` })
-    } else {
-      store.addUser(formData)
-      toast({ title: "User Created", description: `Internal account for ${formData.name} created.` })
-    }
-    setDrawerOpen(false)
-  }
-
-  const toggleUserStatus = (user: UserItem) => {
-    const nextStatus = user.status === "Active" ? "Deactivated" : "Active"
-    store.updateUser(user.id, { status: nextStatus })
-    toast({
-      title: `User ${nextStatus}`,
-      description: `${user.name} is now ${nextStatus.toLowerCase()}.`,
-      type: nextStatus === "Active" ? "success" : "warning"
-    })
-  }
-
-  const columns: Column<UserItem>[] = [
-    {
-      key: "name",
-      header: "User Details",
-      render: (u) => (
-        <div>
-          <div className="font-medium text-text-primary">{u.name}</div>
-          <div className="text-xs text-text-secondary font-mono">{u.email}</div>
-        </div>
-      )
-    },
-    {
-      key: "phone",
-      header: "Phone",
-      render: (u) => <span className="font-mono text-xs">{u.phone}</span>
-    },
-    {
-      key: "role",
-      header: "System Role",
-      render: (u) => {
-        const colors: Record<Role, string> = {
-          Admin: "border-accent text-accent bg-accent/5",
-          Manager: "border-blue-500/40 text-blue-600 bg-blue-500/5",
-          Finance: "border-emerald-500/40 text-emerald-600 bg-emerald-500/5",
-          Rep: "border-border text-text-secondary bg-surface"
-        }
-        return (
-          <Badge variant="secondary" className={`font-mono text-xs ${colors[u.role]}`}>
-            {u.role}
-          </Badge>
-        )
+    setSaving(true)
+    try {
+      if (editingId) {
+        await apiUpdateUser(editingId, {
+          full_name: formData.full_name,
+          mobile_number: formData.mobile_number || undefined,
+          role: formData.role,
+        })
+        toast({ title: "User Updated" })
+      } else {
+        await apiCreateUser({
+          full_name: formData.full_name,
+          email: formData.email,
+          password: formData.password || undefined,
+          mobile_number: formData.mobile_number || undefined,
+          role: formData.role,
+        })
+        toast({ title: "User Created" })
       }
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (u) => (
-        <Badge variant={u.status === "Active" ? "default" : "secondary"} className="text-xs">
-          {u.status}
-        </Badge>
-      )
-    },
-    {
-      key: "lastLogin",
-      header: "Last Active",
-      render: (u) => <span className="text-xs text-text-muted">{u.lastLogin}</span>
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      className: "text-right",
-      render: (u) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => openEditDrawer(u)}>
-            Edit
-          </Button>
-          <Button
-            variant="ghost"
-            className={`h-7 px-2 text-xs ${u.status === "Active" ? "text-danger hover:text-danger" : "text-accent"}`}
-            onClick={() => toggleUserStatus(u)}
-          >
-            {u.status === "Active" ? "Deactivate" : "Activate"}
-          </Button>
-        </div>
-      )
+      setDrawerOpen(false)
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Save failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSaving(false)
     }
-  ]
+  }
+
+  const handleDeactivate = async (userId: string, name: string) => {
+    if (!confirm(`Deactivate "${name}"?`)) return
+    try {
+      await apiDeactivateUser(userId)
+      toast({ title: "User Deactivated" })
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Internal Users & Governance</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">User Management</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Manage sales representatives, managers, finance officers, and administrator credentials.
+            Manage internal team members, roles, and access controls.
           </p>
         </div>
-
-        <Button onClick={openCreateDrawer} className="sm:w-auto">
-          + Add New User
-        </Button>
+        <Button onClick={openCreate}>+ Invite User</Button>
       </div>
 
-      <DataTable
-        data={store.users}
-        columns={columns}
-        searchPlaceholder="Search users by name or email..."
-        searchKey={(u) => `${u.name} ${u.email} ${u.role}`}
-        title="Active Team Directory"
-        subtitle={`${store.users.length} total registered internal members`}
-      />
+      <div className="border border-border rounded-lg overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
+            <tr>
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Verified</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {loading ? (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-text-muted">Loading…</td></tr>
+            ) : users.length === 0 ? (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-text-muted">No users found.</td></tr>
+            ) : users.map((u) => (
+              <tr key={u.id} className="hover:bg-surface/60">
+                <td className="px-4 py-3">
+                  <div className="font-semibold text-text-primary">{u.full_name}</div>
+                  {u.mobile_number && <div className="text-xs text-text-muted">{u.mobile_number}</div>}
+                </td>
+                <td className="px-4 py-3 text-text-secondary text-xs">{u.email}</td>
+                <td className="px-4 py-3">
+                  <Badge variant="secondary" className={`font-mono text-xs ${ROLE_COLORS[u.role]}`}>
+                    {ROLE_LABELS[u.role]}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`text-xs font-medium ${u.is_email_verified ? "text-emerald-600" : "text-amber-600"}`}>
+                    {u.is_email_verified ? "✓ Verified" : "Pending"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <Badge variant={u.is_active ? "default" : "secondary"} className="text-xs">
+                    {u.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEdit(u)}>Edit</Button>
+                    {u.is_active && !u.is_system && (
+                      <Button variant="ghost" className="h-7 px-2.5 text-xs text-danger hover:text-danger" onClick={() => handleDeactivate(u.id, u.full_name)}>Deactivate</Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      {/* User Form Drawer */}
       <FormDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title={editingUser ? "Edit User Record" : "Provision Internal User"}
-        subtitle="Configure role hierarchy and authorization parameters"
+        title={editingId ? "Edit User" : "Invite Team Member"}
+        subtitle="Manage internal user access"
         footerActions={
           <>
-            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>
-              {editingUser ? "Save Changes" : "Create Account"}
-            </Button>
+            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : editingId ? "Save Changes" : "Send Invite"}</Button>
           </>
         }
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Full Name</label>
-            <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g. Jordan Hayes"
-              required
-            />
+            <label className="block text-xs font-medium text-text-secondary mb-1">Full Name *</label>
+            <Input value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} placeholder="Jane Smith" required />
           </div>
-
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Work Email</label>
-            <Input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="jordan.hayes@dealflow360.com"
-              required
-            />
+            <label className="block text-xs font-medium text-text-secondary mb-1">Work Email *</label>
+            <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="jane@company.com" disabled={!!editingId} required />
           </div>
-
+          {!editingId && (
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Temporary Password</label>
+              <Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="Leave blank to auto-generate" />
+            </div>
+          )}
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Contact Phone</label>
-            <Input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+1 (555) 000-0000"
-            />
+            <label className="block text-xs font-medium text-text-secondary mb-1">Mobile Number</label>
+            <Input value={formData.mobile_number} onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })} placeholder="+1 555 0000" />
           </div>
-
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Assigned Role</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Role</label>
             <select
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
-              className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm text-text-primary focus:outline-none focus:border-accent"
+              className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent"
             >
-              <option value="Admin">Administrator (Full Access & Settings)</option>
-              <option value="Manager">Sales Manager (Approvals & Ceilings)</option>
-              <option value="Finance">Finance & Operations (Fulfillment & Invoices)</option>
-              <option value="Rep">Sales Representative (Deals & Pipeline)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Account Status</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as "Active" | "Deactivated" })}
-              className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm text-text-primary focus:outline-none focus:border-accent"
-            >
-              <option value="Active">Active (Permitted Login)</option>
-              <option value="Deactivated">Deactivated (Locked Out)</option>
+              {(["admin", "sales_manager", "sales_rep", "finance"] as Role[]).map((r) => (
+                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+              ))}
             </select>
           </div>
         </form>

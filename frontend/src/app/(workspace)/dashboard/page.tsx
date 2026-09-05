@@ -1,19 +1,56 @@
 "use client"
-import React from "react"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
-import { useDataStore } from "@/lib/data/useDataStore"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { apiListQuotations, type QuotationResponse } from "@/lib/api/quotations"
+import { apiListWarehouses } from "@/lib/api/warehouses"
+import { apiListApprovals } from "@/lib/api/approvals"
+
+const statusColors: Record<string, string> = {
+  draft: "border-border text-text-secondary",
+  pending_approval: "border-accent text-accent bg-accent/5",
+  approved: "border-blue-500/50 text-blue-600 bg-blue-500/5",
+  revision_requested: "border-amber-500/50 text-amber-600 bg-amber-500/5",
+  under_negotiation: "border-purple-500/50 text-purple-600 bg-purple-500/5",
+  accepted: "border-emerald-500/50 text-emerald-600 bg-emerald-500/5",
+  fulfilled: "border-emerald-600 text-emerald-700 bg-emerald-500/10",
+  cancelled: "border-red-400/50 text-red-500 bg-red-500/5",
+}
 
 export default function DashboardPage() {
-  const store = useDataStore()
+  const [quotations, setQuotations] = useState<QuotationResponse[]>([])
+  const [warehouseCount, setWarehouseCount] = useState(0)
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  const totalPipeline = store.quotations.reduce((sum, q) => sum + q.totalAmount, 0)
-  const pendingApprovalsCount = store.quotations.filter((q) => q.stage === "Pending Approval").length
-  const avgMargin = (
-    store.quotations.reduce((sum, q) => sum + q.grossMarginPercent, 0) / (store.quotations.length || 1)
-  ).toFixed(1)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [qRes, wRes, aRes] = await Promise.allSettled([
+          apiListQuotations({ page: 1, size: 10 }),
+          apiListWarehouses({ page: 1, size: 1 }),
+          apiListApprovals({ status: "pending", page: 1, size: 1 }),
+        ])
+        if (qRes.status === "fulfilled") setQuotations(qRes.value.items)
+        if (wRes.status === "fulfilled") setWarehouseCount(wRes.value.total)
+        if (aRes.status === "fulfilled") setPendingApprovalsCount(aRes.value.total)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const totalPipeline = quotations.reduce((s, q) => s + (q.total || 0), 0)
+  const avgMargin =
+    quotations.length > 0
+      ? (
+          quotations.reduce((s, q) => s + (q.gross_margin_pct || 0), 0) /
+          quotations.length
+        ).toFixed(1)
+      : "—"
 
   return (
     <div className="space-y-8">
@@ -21,10 +58,10 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded text-[11px] font-mono font-medium bg-accent/10 text-accent mb-2">
-            AUTONOMOUS SALES ENGINE &bull; {store.currentRole.toUpperCase()} CONSOLE
+            AUTONOMOUS SALES ENGINE • LIVE DATA
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-primary">
-            Executive Sales & Operations Command
+            Executive Sales &amp; Operations Command
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary mt-1">
             Real-time pipeline visibility, autonomous discount governance, and multi-warehouse fulfillment.
@@ -33,14 +70,10 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-3">
           <Link href="/pipeline">
-            <Button variant="primary">
-              View Deal Pipeline
-            </Button>
+            <Button variant="primary">View Deal Pipeline</Button>
           </Link>
           <Link href="/approvals">
-            <Button variant="secondary">
-              Approvals ({pendingApprovalsCount})
-            </Button>
+            <Button variant="secondary">Approvals ({pendingApprovalsCount})</Button>
           </Link>
         </div>
       </div>
@@ -50,18 +83,19 @@ export default function DashboardPage() {
         <Card className="p-5 border-border bg-surface flex flex-col justify-between">
           <div className="text-xs font-mono text-text-secondary">TOTAL PIPELINE VALUE</div>
           <div className="font-mono text-2xl sm:text-3xl font-extrabold text-text-primary mt-2">
-            ${totalPipeline.toLocaleString()}
+            {loading ? "…" : `$${totalPipeline.toLocaleString()}`}
           </div>
           <div className="text-[11px] text-emerald-600 font-mono mt-3 flex items-center gap-1">
-            <span>&uarr; 14.8%</span>
-            <span className="text-text-muted">vs last cycle</span>
+            <span>↑ Live Data</span>
+            <span className="text-text-muted">from backend</span>
           </div>
         </Card>
 
         <Card className="p-5 border-border bg-surface flex flex-col justify-between">
           <div className="text-xs font-mono text-text-secondary">PENDING APPROVALS</div>
           <div className="font-mono text-2xl sm:text-3xl font-extrabold text-accent mt-2">
-            {pendingApprovalsCount} <span className="text-sm font-normal text-text-secondary">deals</span>
+            {loading ? "…" : pendingApprovalsCount}{" "}
+            <span className="text-sm font-normal text-text-secondary">deals</span>
           </div>
           <div className="text-[11px] text-text-muted font-mono mt-3">
             Escalation SLA: &lt; 24h
@@ -71,25 +105,26 @@ export default function DashboardPage() {
         <Card className="p-5 border-border bg-surface flex flex-col justify-between">
           <div className="text-xs font-mono text-text-secondary">AVERAGE GROSS MARGIN</div>
           <div className="font-mono text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2">
-            {avgMargin}%
+            {loading ? "…" : `${avgMargin}%`}
           </div>
           <div className="text-[11px] text-text-muted font-mono mt-3">
-            Floor Policy: &ge; {store.settings.minimumGrossMarginPercent}%
+            Computed from live quotations
           </div>
         </Card>
 
         <Card className="p-5 border-border bg-surface flex flex-col justify-between">
-          <div className="text-xs font-mono text-text-secondary">ACTIVE HUBS & STOCK</div>
+          <div className="text-xs font-mono text-text-secondary">ACTIVE HUBS &amp; STOCK</div>
           <div className="font-mono text-2xl sm:text-3xl font-extrabold text-text-primary mt-2">
-            {store.warehouses.length} <span className="text-sm font-normal text-text-secondary">hubs</span>
+            {loading ? "…" : warehouseCount}{" "}
+            <span className="text-sm font-normal text-text-secondary">hubs</span>
           </div>
           <div className="text-[11px] text-text-muted font-mono mt-3">
-            Odoo Sync: Live Connected
+            Backend Sync: Live Connected
           </div>
         </Card>
       </div>
 
-      {/* Main Sections: Recent Pipeline + Fast Action Desk */}
+      {/* Main Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Quotations Table Card */}
         <Card className="p-6 border-border bg-surface lg:col-span-2 space-y-4">
@@ -99,97 +134,105 @@ export default function DashboardPage() {
               <p className="text-xs text-text-secondary">Live deals flowing through the governance matrix</p>
             </div>
             <Link href="/pipeline" className="text-xs text-accent hover:underline font-medium">
-              Open Full Pipeline &rarr;
+              Open Full Pipeline →
             </Link>
           </div>
 
-          <div className="border border-border rounded overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-background/80 border-b border-border font-mono text-text-secondary">
-                <tr>
-                  <th className="p-3">Deal Reference</th>
-                  <th className="p-3">Customer</th>
-                  <th className="p-3">Value</th>
-                  <th className="p-3">Margin</th>
-                  <th className="p-3">Stage</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {store.quotations.slice(0, 5).map((q) => {
-                  const stageColors: Record<string, string> = {
-                    "Draft": "border-border text-text-secondary",
-                    "Pending Approval": "border-accent text-accent bg-accent/5",
-                    "Approved": "border-blue-500/50 text-blue-600 bg-blue-500/5",
-                    "Customer Review": "border-purple-500/50 text-purple-600 bg-purple-500/5",
-                    "Accepted": "border-emerald-500/50 text-emerald-600 bg-emerald-500/5",
-                    "Done": "border-emerald-600 text-emerald-700 bg-emerald-500/10"
-                  }
-
-                  return (
+          {loading ? (
+            <div className="text-center py-8 text-text-muted text-sm">Loading quotations…</div>
+          ) : quotations.length === 0 ? (
+            <div className="text-center py-8 text-text-muted text-sm">No quotations yet. Create your first deal!</div>
+          ) : (
+            <div className="border border-border rounded overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-background/80 border-b border-border font-mono text-text-secondary">
+                  <tr>
+                    <th className="p-3">Deal Reference</th>
+                    <th className="p-3">Customer</th>
+                    <th className="p-3">Value</th>
+                    <th className="p-3">Margin</th>
+                    <th className="p-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {quotations.slice(0, 5).map((q) => (
                     <tr key={q.id} className="hover:bg-background/40 transition-colors">
                       <td className="p-3">
-                        <div className="font-mono font-bold text-text-primary">{q.dealRef}</div>
-                        <div className="text-[11px] text-text-muted truncate max-w-[140px]">{q.title}</div>
+                        <Link href={`/quotations/${q.id}`}>
+                          <div className="font-mono font-bold text-text-primary hover:text-accent transition-colors">
+                            {q.number}
+                          </div>
+                        </Link>
+                        <div className="text-[11px] text-text-muted">{q.customer_name || "—"}</div>
                       </td>
                       <td className="p-3">
-                        <div className="font-medium text-text-primary">{q.customerName}</div>
-                        <div className="text-[10px] text-text-secondary font-mono">{q.customerTier} Tier</div>
+                        <div className="font-medium text-text-primary">{q.customer_name || "—"}</div>
+                        <div className="text-[10px] text-text-secondary font-mono">{q.rep_name || "—"}</div>
                       </td>
                       <td className="p-3 font-mono font-semibold text-text-primary">
-                        ${q.totalAmount.toLocaleString()}
+                        ${(q.total || 0).toLocaleString()}
                       </td>
                       <td className="p-3 font-mono">
-                        <span className={q.grossMarginPercent >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
-                          {q.grossMarginPercent}%
+                        <span
+                          className={
+                            (q.gross_margin_pct || 0) >= 40
+                              ? "text-emerald-600 font-bold"
+                              : "text-amber-600 font-bold"
+                          }
+                        >
+                          {q.gross_margin_pct != null ? `${q.gross_margin_pct.toFixed(1)}%` : "—"}
                         </span>
                       </td>
                       <td className="p-3">
-                        <Badge variant="secondary" className={`font-mono text-[10px] ${stageColors[q.stage]}`}>
-                          {q.stage}
+                        <Badge
+                          variant="secondary"
+                          className={`font-mono text-[10px] ${statusColors[q.status] || ""}`}
+                        >
+                          {q.status.replace(/_/g, " ")}
                         </Badge>
                       </td>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
 
         {/* Quick Governance Links */}
         <Card className="p-6 border-border bg-surface space-y-4">
           <h2 className="text-base font-semibold text-text-primary">Governance Modules</h2>
-          <p className="text-xs text-text-secondary">Direct shortcuts for administrative rules & catalogs</p>
+          <p className="text-xs text-text-secondary">Direct shortcuts for administrative rules &amp; catalogs</p>
 
           <div className="space-y-2.5">
-            <Link href="/discount-tiers" className="block p-3 rounded border border-border bg-background hover:border-accent/60 transition-all group">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-primary group-hover:text-accent">Discount Tiers & Ceilings</span>
-                <span className="font-mono text-xs text-accent">&rarr;</span>
-              </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Tier limits & category discount caps</div>
-            </Link>
+            {[
+              { href: "/discount-tiers", label: "Discount Tiers & Ceilings", desc: "Tier limits & category discount caps" },
+              { href: "/approval-rules", label: "Approval Chains", desc: "Margin thresholds & risk escalation" },
+              { href: "/warehouses", label: "Inventory & Stock", desc: "Multi-hub stock levels & adjust tool" },
+              { href: "/customers", label: "Customer Ledger", desc: "Accounts, tiers, credit approvals" },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="block p-3 rounded border border-border bg-background hover:border-accent/60 transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-text-primary group-hover:text-accent">
+                    {item.label}
+                  </span>
+                  <span className="font-mono text-xs text-accent">→</span>
+                </div>
+                <div className="text-[11px] text-text-muted mt-0.5">{item.desc}</div>
+              </Link>
+            ))}
 
-            <Link href="/approval-rules" className="block p-3 rounded border border-border bg-background hover:border-accent/60 transition-all group">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-primary group-hover:text-accent">Approval Chains</span>
-                <span className="font-mono text-xs text-accent">&rarr;</span>
-              </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Margin thresholds & risk escalation</div>
-            </Link>
-
-            <Link href="/warehouses" className="block p-3 rounded border border-border bg-background hover:border-accent/60 transition-all group">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-primary group-hover:text-accent">Inventory & Stock</span>
-                <span className="font-mono text-xs text-accent">&rarr;</span>
-              </div>
-              <div className="text-[11px] text-text-muted mt-0.5">Multi-hub stock levels & adjust tool</div>
-            </Link>
-
-            <Link href="/portal" className="block p-3 rounded border border-accent/40 bg-accent/5 hover:border-accent transition-all group">
+            <Link
+              href="/portal"
+              className="block p-3 rounded border border-accent/40 bg-accent/5 hover:border-accent transition-all group"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-accent">Customer Negotiation Portal</span>
-                <span className="font-mono text-xs text-accent">&rarr;</span>
+                <span className="font-mono text-xs text-accent">→</span>
               </div>
               <div className="text-[11px] text-text-muted mt-0.5">Simulate buyer view and counter-offers</div>
             </Link>

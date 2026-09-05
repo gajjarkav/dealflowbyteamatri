@@ -1,234 +1,247 @@
 "use client"
-import React, { useState } from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
-import { DataTable, Column } from "@/components/ui/data-table"
+import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
-import type { CustomerItem } from "@/lib/data/mockStore"
+import {
+  apiListCustomers,
+  apiCreateCustomer,
+  apiUpdateCustomer,
+  type CustomerResponse,
+  type Tier,
+} from "@/lib/api/customers"
+
+const TIER_STYLES: Record<Tier, string> = {
+  platinum: "border-purple-500/50 text-purple-600 bg-purple-500/5",
+  gold: "border-amber-500/50 text-amber-600 bg-amber-500/5",
+  silver: "border-slate-400 text-slate-600 bg-slate-400/5",
+  bronze: "border-orange-400 text-orange-600 bg-orange-400/5",
+}
+
+const DEFAULT_FORM = {
+  company_name: "",
+  tier: "bronze" as Tier,
+  currency: "USD",
+  billing_address: "",
+  tax_id: "",
+  portal_email: "",
+  portal_full_name: "",
+}
 
 export default function CustomersPage() {
-  const store = useDataStore()
   const { toast } = useToast()
+  const [customers, setCustomers] = useState<CustomerResponse[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editingCustomer, setEditingCustomer] = useState<CustomerItem | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formData, setFormData] = useState(DEFAULT_FORM)
+  const [saving, setSaving] = useState(false)
 
-  const [formData, setFormData] = useState({
-    name: "",
-    contactPerson: "",
-    email: "",
-    phone: "",
-    tier: "Gold" as CustomerItem["tier"],
-    currency: "USD",
-    creditLimit: 100000,
-    status: "Active" as "Active" | "Under Review",
-    industry: "Technology",
-    accountManagerId: "usr-1"
-  })
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await apiListCustomers({ search: search || undefined, page, size: 20 })
+      setCustomers(res.items)
+      setTotal(res.total)
+    } catch (_err: unknown) {
+      toast({ title: "Error", description: "Failed to load customers", type: "error" })
+    } finally {
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, page])
 
-  const openCreateDrawer = () => {
-    setEditingCustomer(null)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
+
+  const openCreate = () => {
+    setEditingId(null)
+    setFormData(DEFAULT_FORM)
+    setDrawerOpen(true)
+  }
+
+  const openEdit = (c: CustomerResponse) => {
+    setEditingId(c.id)
     setFormData({
-      name: "",
-      contactPerson: "",
-      email: "",
-      phone: "",
-      tier: "Gold",
-      currency: "USD",
-      creditLimit: 100000,
-      status: "Active",
-      industry: "Technology",
-      accountManagerId: "usr-1"
+      company_name: c.company_name,
+      tier: c.tier,
+      currency: c.currency,
+      billing_address: c.billing_address || "",
+      tax_id: c.tax_id || "",
+      portal_email: "",
+      portal_full_name: "",
     })
     setDrawerOpen(true)
   }
 
-  const openEditDrawer = (customer: CustomerItem) => {
-    setEditingCustomer(customer)
-    setFormData({
-      name: customer.name,
-      contactPerson: customer.contactPerson,
-      email: customer.email,
-      phone: customer.phone,
-      tier: customer.tier,
-      currency: customer.currency,
-      creditLimit: customer.creditLimit,
-      status: customer.status,
-      industry: customer.industry,
-      accountManagerId: customer.accountManagerId
-    })
-    setDrawerOpen(true)
-  }
-
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.name || !formData.email) {
-      toast({ title: "Validation Error", description: "Company name and email are required.", type: "error" })
+    if (!formData.company_name) {
+      toast({ title: "Validation Error", description: "Company name is required.", type: "error" })
       return
     }
-
-    if (editingCustomer) {
-      store.updateCustomer(editingCustomer.id, formData)
-      toast({ title: "Customer Updated", description: `${formData.name} account details saved.` })
-    } else {
-      store.addCustomer(formData)
-      toast({ title: "Customer Enrolled", description: `${formData.name} added to customer directory.` })
-    }
-    setDrawerOpen(false)
-  }
-
-  const columns: Column<CustomerItem>[] = [
-    {
-      key: "name",
-      header: "Enterprise Customer",
-      render: (c) => (
-        <div>
-          <div className="font-semibold text-text-primary">{c.name}</div>
-          <div className="text-xs text-text-secondary">Contact: {c.contactPerson}</div>
-        </div>
-      )
-    },
-    {
-      key: "tier",
-      header: "Account Tier",
-      render: (c) => {
-        const tierStyles = {
-          Platinum: "border-purple-500/50 text-purple-600 bg-purple-500/5",
-          Gold: "border-amber-500/50 text-amber-600 bg-amber-500/5",
-          Silver: "border-slate-400 text-slate-600 bg-slate-400/5",
-          Bronze: "border-orange-400 text-orange-600 bg-orange-400/5"
-        }[c.tier]
-
-        return (
-          <Badge variant="secondary" className={`font-mono text-xs ${tierStyles}`}>
-            {c.tier}
-          </Badge>
-        )
+    setSaving(true)
+    try {
+      if (editingId) {
+        await apiUpdateCustomer(editingId, {
+          company_name: formData.company_name,
+          tier: formData.tier,
+          currency: formData.currency,
+          billing_address: formData.billing_address || undefined,
+          tax_id: formData.tax_id || undefined,
+        })
+        toast({ title: "Customer Updated", description: `${formData.company_name} saved.` })
+      } else {
+        await apiCreateCustomer({
+          company_name: formData.company_name,
+          tier: formData.tier,
+          currency: formData.currency,
+          billing_address: formData.billing_address || undefined,
+          tax_id: formData.tax_id || undefined,
+          portal_email: formData.portal_email || undefined,
+          portal_full_name: formData.portal_full_name || undefined,
+        })
+        toast({ title: "Customer Created", description: `${formData.company_name} added.` })
       }
-    },
-    {
-      key: "creditLimit",
-      header: "Credit Line",
-      render: (c) => (
-        <span className="font-mono text-xs font-medium">
-          {c.currency} ${c.creditLimit.toLocaleString()}
-        </span>
-      )
-    },
-    {
-      key: "totalSpent",
-      header: "Lifetime Bookings",
-      render: (c) => (
-        <span className="font-mono text-xs text-text-secondary">
-          ${c.totalSpent.toLocaleString()}
-        </span>
-      )
-    },
-    {
-      key: "status",
-      header: "Status",
-      render: (c) => (
-        <Badge variant={c.status === "Active" ? "default" : "secondary"} className="text-xs">
-          {c.status}
-        </Badge>
-      )
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      className: "text-right",
-      render: (c) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEditDrawer(c)}>
-            Edit Tier
-          </Button>
-        </div>
-      )
+      setDrawerOpen(false)
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Save failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSaving(false)
     }
-  ]
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Customer Ledger & Tiers</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Customer Ledger &amp; Tiers</h1>
           <p className="text-sm text-text-secondary mt-1">
             Accounts, tier-based discount ceilings, credit approvals, and billing contacts.
           </p>
         </div>
-
-        <Button onClick={openCreateDrawer}>
-          + Register Customer
-        </Button>
+        <Button onClick={openCreate}>+ Register Customer</Button>
       </div>
 
-      <DataTable
-        data={store.customers}
-        columns={columns}
-        searchPlaceholder="Search customer by name or contact..."
-        searchKey={(c) => `${c.name} ${c.contactPerson} ${c.email} ${c.tier}`}
-        title="Enterprise Accounts"
-        subtitle={`${store.customers.length} actively tracked customer accounts`}
-      />
+      {/* Search + Count bar */}
+      <div className="flex items-center gap-3">
+        <Input
+          placeholder="Search by company name…"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          className="max-w-xs"
+        />
+        <span className="text-xs text-text-muted">{total} accounts</span>
+      </div>
 
-      {/* Customer Drawer */}
+      {/* Table */}
+      <div className="border border-border rounded-lg overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-surface border-b border-border">
+            <tr className="text-xs font-mono text-text-secondary">
+              <th className="px-4 py-3">Company</th>
+              <th className="px-4 py-3">Tier</th>
+              <th className="px-4 py-3">Currency</th>
+              <th className="px-4 py-3">Portal Users</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-text-muted text-sm">
+                  Loading customers…
+                </td>
+              </tr>
+            ) : customers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center text-text-muted text-sm">
+                  No customers found. Add your first account!
+                </td>
+              </tr>
+            ) : (
+              customers.map((c) => (
+                <tr key={c.id} className="hover:bg-surface/60 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="font-semibold text-text-primary">{c.company_name}</div>
+                    {c.tax_id && (
+                      <div className="text-xs text-text-muted font-mono">TAX: {c.tax_id}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant="secondary" className={`font-mono text-xs ${TIER_STYLES[c.tier]}`}>
+                      {c.tier.charAt(0).toUpperCase() + c.tier.slice(1)}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs">{c.currency}</td>
+                  <td className="px-4 py-3 text-xs text-text-secondary">
+                    {c.users.length} user{c.users.length !== 1 ? "s" : ""}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={c.is_active ? "default" : "secondary"} className="text-xs">
+                      {c.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEdit(c)}>
+                      Edit
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {total > 20 && (
+        <div className="flex items-center justify-between text-xs text-text-muted">
+          <span>Page {page} of {Math.ceil(total / 20)}</span>
+          <div className="flex gap-2">
+            <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
+              ← Prev
+            </Button>
+            <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>
+              Next →
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Drawer */}
       <FormDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title={editingCustomer ? "Edit Customer Record" : "Enroll Enterprise Customer"}
-        subtitle="Manage discount tier privileges and billing line"
+        title={editingId ? "Edit Customer Record" : "Enroll Enterprise Customer"}
+        subtitle="Manage tier privileges and billing line"
         footerActions={
           <>
-            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>
-              {editingCustomer ? "Save Changes" : "Create Account"}
+            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : editingId ? "Save Changes" : "Create Account"}
             </Button>
           </>
         }
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Company / Organization Name</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Company / Organization Name *</label>
             <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData.company_name}
+              onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
               placeholder="e.g. OpenAI Global Corp"
               required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Primary Procurement Contact</label>
-            <Input
-              value={formData.contactPerson}
-              onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-              placeholder="e.g. Sarah Jenkins"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Billing Email</label>
-            <Input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="ap@company.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Phone Number</label>
-            <Input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+1 (555) 000-0000"
             />
           </div>
 
@@ -237,16 +250,15 @@ export default function CustomersPage() {
               <label className="block text-xs font-medium text-text-secondary mb-1">Account Tier</label>
               <select
                 value={formData.tier}
-                onChange={(e) => setFormData({ ...formData, tier: e.target.value as CustomerItem["tier"] })}
+                onChange={(e) => setFormData({ ...formData, tier: e.target.value as Tier })}
                 className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm text-text-primary focus:outline-none focus:border-accent"
               >
-                <option value="Bronze">Bronze (5% Max Disc)</option>
-                <option value="Silver">Silver (10% Max Disc)</option>
-                <option value="Gold">Gold (15% Max Disc)</option>
-                <option value="Platinum">Platinum (20% Max Disc)</option>
+                <option value="bronze">Bronze</option>
+                <option value="silver">Silver</option>
+                <option value="gold">Gold</option>
+                <option value="platinum">Platinum</option>
               </select>
             </div>
-
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1">Billing Currency</label>
               <select
@@ -257,20 +269,55 @@ export default function CustomersPage() {
                 <option value="USD">USD ($)</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>
+                <option value="INR">INR (₹)</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Credit Limit ($)</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Billing Address</label>
             <Input
-              type="number"
-              value={formData.creditLimit}
-              onChange={(e) => setFormData({ ...formData, creditLimit: Number(e.target.value) })}
-              min={0}
-              step={5000}
+              value={formData.billing_address}
+              onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })}
+              placeholder="123 Main St, City, Country"
             />
           </div>
+
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Tax ID / VAT Number</label>
+            <Input
+              value={formData.tax_id}
+              onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
+              placeholder="US-12-3456789"
+            />
+          </div>
+
+          {!editingId && (
+            <div className="border-t border-border pt-4">
+              <p className="text-xs font-medium text-text-secondary mb-3">
+                Optional: Invite a portal user immediately
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Portal Contact Name</label>
+                  <Input
+                    value={formData.portal_full_name}
+                    onChange={(e) => setFormData({ ...formData, portal_full_name: e.target.value })}
+                    placeholder="Jane Procurement"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Portal Email</label>
+                  <Input
+                    type="email"
+                    value={formData.portal_email}
+                    onChange={(e) => setFormData({ ...formData, portal_email: e.target.value })}
+                    placeholder="jane@customer.com"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </form>
       </FormDrawer>
     </div>

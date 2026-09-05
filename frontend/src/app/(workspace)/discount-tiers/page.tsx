@@ -1,240 +1,290 @@
 "use client"
-import React, { useState } from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
+import React, { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
+import {
+  apiListDiscountTiers,
+  apiUpsertDiscountTiers,
+  apiListCeilings,
+  apiCreateCeiling,
+  apiUpdateCeiling,
+  apiDeleteCeiling,
+  type DiscountTierResponse,
+  type CategoryCeilingResponse,
+  type TierEnum,
+} from "@/lib/api/discount"
+import { apiListCategories, type CategoryResponse } from "@/lib/api/catalog"
+
+const TIER_ORDER: TierEnum[] = ["bronze", "silver", "gold", "platinum"]
+const TIER_COLORS: Record<TierEnum, string> = {
+  bronze: "text-orange-600 border-orange-400",
+  silver: "text-slate-500 border-slate-400",
+  gold: "text-amber-600 border-amber-500",
+  platinum: "text-purple-600 border-purple-500",
+}
 
 export default function DiscountTiersPage() {
-  const store = useDataStore()
   const { toast } = useToast()
-  const [editingMatrix, setEditingMatrix] = useState(false)
-  const [ceilings, setCeilings] = useState([...store.categoryCeilings])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [tiers, setTiers] = useState<DiscountTierResponse[]>([])
+  const [editedTiers, setEditedTiers] = useState<Record<TierEnum, number>>({} as Record<TierEnum, number>)
+  const [ceilings, setCeilings] = useState<CategoryCeilingResponse[]>([])
+  const [categories, setCategories] = useState<CategoryResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [savingTiers, setSavingTiers] = useState(false)
+  const [ceilingDrawerOpen, setCeilingDrawerOpen] = useState(false)
+  const [editingCeiling, setEditingCeiling] = useState<CategoryCeilingResponse | null>(null)
+  const [ceilingForm, setCeilingForm] = useState({ tier: "bronze" as TierEnum, category_id: "", max_discount_pct: 0 })
+  const [savingCeiling, setSavingCeiling] = useState(false)
 
-  const handleCellChange = (id: string, field: "bronzeMaxDisc" | "silverMaxDisc" | "goldMaxDisc" | "platinumMaxDisc", val: number) => {
-    setCeilings((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, [field]: val } : c))
-    )
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [tRes, cRes, catRes] = await Promise.all([
+        apiListDiscountTiers(),
+        apiListCeilings({ size: 100 }),
+        apiListCategories({ size: 100 }),
+      ])
+      setTiers(tRes)
+      const map: Record<TierEnum, number> = {} as Record<TierEnum, number>
+      tRes.forEach((t) => { map[t.tier] = t.max_discount_pct })
+      setEditedTiers(map)
+      setCeilings(cRes.items)
+      setCategories(catRes.items)
+    } catch {
+      toast({ title: "Error", description: "Failed to load discount config", type: "error" })
+    } finally {
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
+
+  const saveTiers = async () => {
+    setSavingTiers(true)
+    try {
+      const data = TIER_ORDER.map((tier) => ({
+        tier,
+        max_discount_pct: editedTiers[tier] ?? 0,
+      }))
+      await apiUpsertDiscountTiers(data)
+      toast({ title: "Discount Tiers Saved" })
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Save failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSavingTiers(false)
+    }
   }
 
-  const handleSaveMatrix = () => {
-    ceilings.forEach((c) => store.updateCeiling(c.id, c))
-    setEditingMatrix(false)
-    toast({
-      title: "Discount Ceilings Saved",
-      description: "Autonomous discount routing matrix updated successfully."
-    })
+  const openCreateCeiling = () => {
+    setEditingCeiling(null)
+    setCeilingForm({ tier: "bronze", category_id: "", max_discount_pct: 0 })
+    setCeilingDrawerOpen(true)
   }
+
+  const openEditCeiling = (c: CategoryCeilingResponse) => {
+    setEditingCeiling(c)
+    setCeilingForm({ tier: c.tier, category_id: c.category_id, max_discount_pct: c.max_discount_pct })
+    setCeilingDrawerOpen(true)
+  }
+
+  const saveCeiling = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!ceilingForm.category_id) {
+      toast({ title: "Select a category", type: "error" })
+      return
+    }
+    setSavingCeiling(true)
+    try {
+      if (editingCeiling) {
+        await apiUpdateCeiling(editingCeiling.id, { max_discount_pct: ceilingForm.max_discount_pct })
+        toast({ title: "Ceiling Updated" })
+      } else {
+        await apiCreateCeiling({
+          tier: ceilingForm.tier,
+          category_id: ceilingForm.category_id,
+          max_discount_pct: ceilingForm.max_discount_pct,
+        })
+        toast({ title: "Ceiling Created" })
+      }
+      setCeilingDrawerOpen(false)
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Save failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSavingCeiling(false)
+    }
+  }
+
+  const deleteCeiling = async (id: string) => {
+    if (!confirm("Delete this ceiling?")) return
+    try {
+      await apiDeleteCeiling(id)
+      toast({ title: "Ceiling Deleted" })
+      load()
+    } catch { toast({ title: "Delete failed", type: "error" }) }
+  }
+
+  const catName = (id: string) => categories.find((c) => c.id === id)?.name || id.slice(0, 8)
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">Discount Tiers & Category Ceilings</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">Discount Tiers &amp; Category Ceilings</h1>
         <p className="text-sm text-text-secondary mt-1">
-          Self-governing discount rules: sets the maximum autonomous discount before manager or finance approval is triggered.
+          Configure maximum discount percentages per account tier and per product category.
         </p>
       </div>
 
-      {/* Grid: Tiers Summary + Ceilings Matrix */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Tier Baselines Card */}
-        <Card className="p-6 border-border bg-surface lg:col-span-1 flex flex-col justify-between">
+      {/* Tier Max Discount Editor */}
+      <Card className="p-6 border-border bg-surface space-y-5">
+        <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-text-primary">Customer Tier Baselines</h2>
-              <Badge variant="secondary" className="font-mono text-xs">Standard SLA</Badge>
-            </div>
-            <p className="text-xs text-text-secondary mb-6 leading-relaxed">
-              Default maximum discount allowable without requiring manual deal desk escalation.
-            </p>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded bg-background border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-orange-400" />
-                  <span className="text-sm font-medium">Bronze Tier</span>
-                </div>
-                <span className="font-mono text-xs font-bold text-text-primary">5.0% Max Disc</span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded bg-background border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                  <span className="text-sm font-medium">Silver Tier</span>
-                </div>
-                <span className="font-mono text-xs font-bold text-text-primary">10.0% Max Disc</span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded bg-background border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span className="text-sm font-medium">Gold Tier</span>
-                </div>
-                <span className="font-mono text-xs font-bold text-accent">15.0% Max Disc</span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded bg-background border border-border">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-                  <span className="text-sm font-medium">Platinum Tier</span>
-                </div>
-                <span className="font-mono text-xs font-bold text-purple-600">20.0% Max Disc</span>
-              </div>
-            </div>
+            <h2 className="text-base font-semibold text-text-primary">Global Tier Discount Limits</h2>
+            <p className="text-xs text-text-secondary mt-0.5">The maximum discount any rep may offer to each account tier.</p>
           </div>
+          <Button onClick={saveTiers} disabled={savingTiers || loading}>
+            {savingTiers ? "Saving…" : "Save Tiers"}
+          </Button>
+        </div>
 
-          <div className="mt-6 pt-4 border-t border-border text-[11px] text-text-muted">
-            Discounts exceeding tier caps automatically route to Sales Manager approval queue.
-          </div>
-        </Card>
-
-        {/* Category Ceilings Matrix Card */}
-        <Card className="p-6 border-border bg-surface lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-semibold text-text-primary">Category Ceilings Matrix</h2>
-              <p className="text-xs text-text-secondary">Granular tier x category maximum discount percentage limits</p>
-            </div>
-
-            {editingMatrix ? (
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" className="h-8 px-2 text-xs" onClick={() => setEditingMatrix(false)}>
-                  Cancel
-                </Button>
-                <Button className="h-8 px-3 text-xs" onClick={handleSaveMatrix}>
-                  Save Matrix
-                </Button>
+        {loading ? (
+          <div className="text-center py-6 text-text-muted text-sm">Loading…</div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {TIER_ORDER.map((tier) => (
+              <div key={tier} className={`p-4 rounded-lg border-2 ${TIER_COLORS[tier].split(" ")[1]}`}>
+                <div className={`text-xs font-mono font-bold uppercase mb-3 ${TIER_COLORS[tier].split(" ")[0]}`}>
+                  {tier}
+                </div>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={editedTiers[tier] ?? 0}
+                    onChange={(e) => setEditedTiers({ ...editedTiers, [tier]: parseFloat(e.target.value) || 0 })}
+                    className="pr-7"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">%</span>
+                </div>
               </div>
-            ) : (
-              <Button variant="secondary" className="h-8 px-3 text-xs" onClick={() => setEditingMatrix(true)}>
-                Edit Ceilings
-              </Button>
-            )}
+            ))}
           </div>
+        )}
+      </Card>
 
-          <div className="border border-border rounded overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-background/80 border-b border-border font-mono text-text-secondary">
+      {/* Category Ceilings */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-text-primary">Category-Level Discount Ceilings</h2>
+            <p className="text-xs text-text-secondary mt-0.5">Override tier limits for specific product categories.</p>
+          </div>
+          <Button variant="secondary" onClick={openCreateCeiling}>+ Add Ceiling</Button>
+        </div>
+
+        {ceilings.length === 0 ? (
+          <div className="text-center py-10 border border-dashed border-border rounded-lg text-text-muted text-sm">
+            No category ceilings configured.
+          </div>
+        ) : (
+          <div className="border border-border rounded-lg overflow-hidden">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
                 <tr>
-                  <th className="p-3">Product Category</th>
-                  <th className="p-3 text-center">Bronze (%)</th>
-                  <th className="p-3 text-center">Silver (%)</th>
-                  <th className="p-3 text-center">Gold (%)</th>
-                  <th className="p-3 text-center">Platinum (%)</th>
+                  <th className="px-4 py-3">Tier</th>
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3">Max Discount</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {ceilings.map((c) => (
-                  <tr key={c.id} className="hover:bg-background/40 transition-colors">
-                    <td className="p-3 font-semibold text-text-primary">{c.category}</td>
-                    
-                    <td className="p-2 text-center">
-                      {editingMatrix ? (
-                        <Input
-                          type="number"
-                          value={c.bronzeMaxDisc}
-                          onChange={(e) => handleCellChange(c.id, "bronzeMaxDisc", Number(e.target.value))}
-                          className="w-16 h-7 text-center mx-auto text-xs"
-                          min={0}
-                          max={100}
-                        />
-                      ) : (
-                        <span className="font-mono">{c.bronzeMaxDisc}%</span>
-                      )}
+                  <tr key={c.id} className="hover:bg-surface/60">
+                    <td className="px-4 py-3">
+                      <Badge variant="secondary" className={`font-mono text-xs ${TIER_COLORS[c.tier]}`}>
+                        {c.tier}
+                      </Badge>
                     </td>
-
-                    <td className="p-2 text-center">
-                      {editingMatrix ? (
-                        <Input
-                          type="number"
-                          value={c.silverMaxDisc}
-                          onChange={(e) => handleCellChange(c.id, "silverMaxDisc", Number(e.target.value))}
-                          className="w-16 h-7 text-center mx-auto text-xs"
-                          min={0}
-                          max={100}
-                        />
-                      ) : (
-                        <span className="font-mono">{c.silverMaxDisc}%</span>
-                      )}
-                    </td>
-
-                    <td className="p-2 text-center">
-                      {editingMatrix ? (
-                        <Input
-                          type="number"
-                          value={c.goldMaxDisc}
-                          onChange={(e) => handleCellChange(c.id, "goldMaxDisc", Number(e.target.value))}
-                          className="w-16 h-7 text-center mx-auto text-xs font-bold text-accent"
-                          min={0}
-                          max={100}
-                        />
-                      ) : (
-                        <span className="font-mono font-bold text-accent">{c.goldMaxDisc}%</span>
-                      )}
-                    </td>
-
-                    <td className="p-2 text-center">
-                      {editingMatrix ? (
-                        <Input
-                          type="number"
-                          value={c.platinumMaxDisc}
-                          onChange={(e) => handleCellChange(c.id, "platinumMaxDisc", Number(e.target.value))}
-                          className="w-16 h-7 text-center mx-auto text-xs font-bold text-purple-600"
-                          min={0}
-                          max={100}
-                        />
-                      ) : (
-                        <span className="font-mono font-bold text-purple-600">{c.platinumMaxDisc}%</span>
-                      )}
+                    <td className="px-4 py-3 text-text-primary font-medium">{catName(c.category_id)}</td>
+                    <td className="px-4 py-3 font-mono font-bold text-accent">{c.max_discount_pct}%</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEditCeiling(c)}>Edit</Button>
+                        <Button variant="ghost" className="h-7 px-2.5 text-xs text-danger hover:text-danger" onClick={() => deleteCeiling(c.id)}>Del</Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </Card>
+        )}
       </div>
 
-      {/* Autonomous Escalation Matrix */}
-      <Card className="p-6 border-border bg-surface">
-        <h2 className="text-base font-semibold text-text-primary mb-1">Deal Desk Autonomous Routing Rules</h2>
-        <p className="text-xs text-text-secondary mb-4">How quotation requests route through the governance pipeline</p>
-
-        <div className="border border-border rounded overflow-hidden">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-background/80 border-b border-border font-mono text-text-secondary">
-              <tr>
-                <th className="p-3">Discount Threshold Condition</th>
-                <th className="p-3">Gross Margin Floor</th>
-                <th className="p-3">Required Approver</th>
-                <th className="p-3">Risk Level</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60 font-mono">
-              <tr>
-                <td className="p-3 text-text-primary">Within Category Ceiling Limit</td>
-                <td className="p-3">&ge; 40.0%</td>
-                <td className="p-3 text-emerald-600 font-semibold">No Approval Needed (Instant Lock)</td>
-                <td className="p-3"><Badge variant="secondary" className="border-emerald-500/50 text-emerald-600">LOW</Badge></td>
-              </tr>
-              <tr>
-                <td className="p-3 text-text-primary">Over Ceiling &le; 25.0%</td>
-                <td className="p-3">&ge; 32.0%</td>
-                <td className="p-3 text-blue-600 font-semibold">Sales Manager Sign-off</td>
-                <td className="p-3"><Badge variant="secondary" className="border-blue-500/50 text-blue-600">MEDIUM</Badge></td>
-              </tr>
-              <tr>
-                <td className="p-3 text-text-primary">Over Ceiling &gt; 25.0% or Margin &lt; 32%</td>
-                <td className="p-3">&ge; 25.0%</td>
-                <td className="p-3 text-accent font-semibold">Sales Manager + Finance Dual Approval</td>
-                <td className="p-3"><Badge variant="secondary" className="border-accent text-accent">HIGH</Badge></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {/* Ceiling Drawer */}
+      <FormDrawer
+        isOpen={ceilingDrawerOpen}
+        onClose={() => setCeilingDrawerOpen(false)}
+        title={editingCeiling ? "Edit Category Ceiling" : "Add Category Ceiling"}
+        subtitle="Override the global tier limit for a specific product category"
+        footerActions={
+          <>
+            <Button variant="ghost" onClick={() => setCeilingDrawerOpen(false)}>Cancel</Button>
+            <Button onClick={saveCeiling} disabled={savingCeiling}>{savingCeiling ? "Saving…" : "Save Ceiling"}</Button>
+          </>
+        }
+      >
+        <form onSubmit={saveCeiling} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Tier</label>
+              <select
+                value={ceilingForm.tier}
+                onChange={(e) => setCeilingForm({ ...ceilingForm, tier: e.target.value as TierEnum })}
+                disabled={!!editingCeiling}
+                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+              >
+                {TIER_ORDER.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Category</label>
+              <select
+                value={ceilingForm.category_id}
+                onChange={(e) => setCeilingForm({ ...ceilingForm, category_id: e.target.value })}
+                disabled={!!editingCeiling}
+                required
+                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent disabled:opacity-50"
+              >
+                <option value="">Select…</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Max Discount % for this Category</label>
+            <Input
+              type="number" min={0} max={100} step={0.5}
+              value={ceilingForm.max_discount_pct}
+              onChange={(e) => setCeilingForm({ ...ceilingForm, max_discount_pct: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+        </form>
+      </FormDrawer>
     </div>
   )
 }

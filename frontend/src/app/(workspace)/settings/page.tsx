@@ -1,136 +1,193 @@
 "use client"
-import React, { useState } from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
+import React, { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/toast"
+import { apiListSettings, apiUpdateSetting, type AppSettingResponse } from "@/lib/api/discount"
+import { apiChangePassword } from "@/lib/api/users"
+import { useCurrentUser } from "@/lib/auth/context"
 
 export default function SettingsPage() {
-  const store = useDataStore()
   const { toast } = useToast()
+  const { user } = useCurrentUser()
+  const [settings, setSettings] = useState<AppSettingResponse[]>([])
+  const [editedSettings, setEditedSettings] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [pwdForm, setPwdForm] = useState({ old_password: "", new_password: "", confirm: "" })
+  const [savingPwd, setSavingPwd] = useState(false)
 
-  const [form, setForm] = useState({ ...store.settings })
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await apiListSettings()
+      setSettings(res)
+      const map: Record<string, string> = {}
+      res.forEach((s) => { map[s.key] = s.value })
+      setEditedSettings(map)
+    } catch {
+      toast({ title: "Error", description: "Failed to load settings", type: "error" })
+    } finally {
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
+
+  const saveSettings = async () => {
+    setSavingSettings(true)
+    try {
+      await Promise.all(
+        settings.map((s) =>
+          editedSettings[s.key] !== s.value
+            ? apiUpdateSetting(s.key, editedSettings[s.key])
+            : Promise.resolve()
+        )
+      )
+      toast({ title: "Settings Saved" })
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Save failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const changePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    store.updateSettings(form)
-    toast({
-      title: "System Parameters Saved",
-      description: "Autonomous governance thresholds and margin floors updated."
-    })
+    if (pwdForm.new_password.length < 8) {
+      toast({ title: "Password too short", description: "Min. 8 characters", type: "error" })
+      return
+    }
+    if (pwdForm.new_password !== pwdForm.confirm) {
+      toast({ title: "Passwords don't match", type: "error" })
+      return
+    }
+    setSavingPwd(true)
+    try {
+      await apiChangePassword(pwdForm.old_password, pwdForm.new_password)
+      toast({ title: "Password Changed" })
+      setPwdForm({ old_password: "", new_password: "", confirm: "" })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Change failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSavingPwd(false)
+    }
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">System Parameters & Governance</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">Platform Settings</h1>
         <p className="text-sm text-text-secondary mt-1">
-          Global thresholds for stalled deal alerts, margin degradation warnings, and Odoo ERP webhooks.
+          System-wide configuration, security, and user preferences.
         </p>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
-        {/* Deal Health & Risk Settings */}
-        <Card className="p-6 border-border bg-surface space-y-4">
-          <h2 className="text-base font-semibold text-text-primary border-b border-border pb-3">
-            Deal Health & Pipeline Governance
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* My Profile */}
+      <Card className="p-6 border-border bg-surface space-y-4">
+        <h2 className="text-base font-semibold text-text-primary">My Profile</h2>
+        {user && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Stalled Quotation Inactivity Limit (Days)
-              </label>
-              <Input
-                type="number"
-                value={form.stalledQuotationDays}
-                onChange={(e) => setForm({ ...form, stalledQuotationDays: Number(e.target.value) })}
-                min={1}
-                max={30}
-              />
-              <span className="text-[11px] text-text-muted mt-1 block">
-                Deals inactive longer than this are flagged as high risk.
-              </span>
+              <div className="text-xs text-text-secondary mb-1">Full Name</div>
+              <div className="font-medium text-text-primary">{user.full_name}</div>
             </div>
-
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Approval Queue Timeout (Hours)
-              </label>
-              <Input
-                type="number"
-                value={form.approvalTimeoutHours}
-                onChange={(e) => setForm({ ...form, approvalTimeoutHours: Number(e.target.value) })}
-                min={6}
-                max={168}
-              />
-              <span className="text-[11px] text-text-muted mt-1 block">
-                Pending approvals will escalate if unresolved within window.
-              </span>
+              <div className="text-xs text-text-secondary mb-1">Email</div>
+              <div className="font-medium text-text-primary">{user.email}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary mb-1">Role</div>
+              <div className="font-medium text-text-primary capitalize">{user.role.replace(/_/g, " ")}</div>
             </div>
           </div>
-        </Card>
+        )}
+      </Card>
 
-        {/* Financial & Margin Floors */}
-        <Card className="p-6 border-border bg-surface space-y-4">
-          <h2 className="text-base font-semibold text-text-primary border-b border-border pb-3">
-            Margin Floors & Currency Policy
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Target Benchmark Gross Margin (%)
-              </label>
-              <Input
-                type="number"
-                value={form.targetGrossMarginPercent}
-                onChange={(e) => setForm({ ...form, targetGrossMarginPercent: Number(e.target.value) })}
-                min={10}
-                max={90}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Strict Margin Floor (%)
-              </label>
-              <Input
-                type="number"
-                value={form.minimumGrossMarginPercent}
-                onChange={(e) => setForm({ ...form, minimumGrossMarginPercent: Number(e.target.value) })}
-                min={5}
-                max={50}
-              />
-              <span className="text-[11px] text-text-muted mt-1 block">
-                Quotations below this floor require executive CFO override.
-              </span>
-            </div>
-          </div>
-
+      {/* Change Password */}
+      <Card className="p-6 border-border bg-surface space-y-4">
+        <h2 className="text-base font-semibold text-text-primary">Change Password</h2>
+        <form onSubmit={changePassword} className="space-y-4 max-w-md">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Base System Currency
-            </label>
-            <select
-              value={form.currencyDefault}
-              onChange={(e) => setForm({ ...form, currencyDefault: e.target.value })}
-              className="w-full sm:w-64 h-9 rounded-md border border-border bg-background px-3 py-1 text-sm text-text-primary focus:outline-none focus:border-accent"
-            >
-              <option value="USD">USD ($) - United States Dollar</option>
-              <option value="EUR">EUR (€) - Eurozone</option>
-              <option value="GBP">GBP (£) - British Pound</option>
-            </select>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Current Password</label>
+            <Input
+              type="password"
+              value={pwdForm.old_password}
+              onChange={(e) => setPwdForm({ ...pwdForm, old_password: e.target.value })}
+              placeholder="••••••••"
+            />
           </div>
-        </Card>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="submit" className="px-6">
-            Save System Settings
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">New Password</label>
+            <Input
+              type="password"
+              value={pwdForm.new_password}
+              onChange={(e) => setPwdForm({ ...pwdForm, new_password: e.target.value })}
+              placeholder="Min. 8 characters"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Confirm New Password</label>
+            <Input
+              type="password"
+              value={pwdForm.confirm}
+              onChange={(e) => setPwdForm({ ...pwdForm, confirm: e.target.value })}
+              placeholder="••••••••"
+            />
+          </div>
+          <Button type="submit" disabled={savingPwd}>
+            {savingPwd ? "Updating…" : "Change Password"}
           </Button>
-        </div>
-      </form>
+        </form>
+      </Card>
+
+      {/* App Settings */}
+      {(user?.role === "admin") && (
+        <Card className="p-6 border-border bg-surface space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-text-primary">System Configuration</h2>
+              <p className="text-xs text-text-secondary mt-0.5">Global platform settings (Admin only)</p>
+            </div>
+            <Button onClick={saveSettings} disabled={savingSettings || loading}>
+              {savingSettings ? "Saving…" : "Save All Settings"}
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-8 text-text-muted text-sm">Loading settings…</div>
+          ) : settings.length === 0 ? (
+            <div className="text-center py-8 text-text-muted text-sm">No configurable settings found.</div>
+          ) : (
+            <div className="space-y-4">
+              {settings.map((s) => (
+                <div key={s.key} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center p-3 border border-border rounded bg-background">
+                  <div>
+                    <div className="font-mono text-xs font-bold text-text-primary">{s.key}</div>
+                    <div className="text-[11px] text-text-muted mt-0.5">
+                      Last updated: {new Date(s.updated_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Input
+                      value={editedSettings[s.key] ?? ""}
+                      onChange={(e) => setEditedSettings({ ...editedSettings, [s.key]: e.target.value })}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   )
 }

@@ -1,364 +1,283 @@
 "use client"
-import React, { useState } from "react"
-import { useDataStore } from "@/lib/data/useDataStore"
-import { DataTable, Column } from "@/components/ui/data-table"
+import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
-import type { ProductItem, CategoryCeilingItem } from "@/lib/data/mockStore"
+import {
+  apiListProducts,
+  apiCreateProduct,
+  apiUpdateProduct,
+  apiDeleteProduct,
+  apiListCategories,
+  type ProductResponse,
+  type CategoryResponse,
+} from "@/lib/api/catalog"
+
+const DEFAULT_FORM = {
+  name: "", sku: "", description: "",
+  category_id: "", list_price: 0, cost_price: 0,
+  is_recurring: false,
+}
 
 export default function ProductsPage() {
-  const store = useDataStore()
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState<"products" | "categories">("products")
+  const [products, setProducts] = useState<ProductResponse[]>([])
+  const [categories, setCategories] = useState<CategoryResponse[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<ProductItem | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formData, setFormData] = useState(DEFAULT_FORM)
+  const [saving, setSaving] = useState(false)
 
-  const [formData, setFormData] = useState({
-    sku: "",
-    name: "",
-    category: "Hardware" as ProductItem["category"],
-    costPrice: 5000,
-    sellPrice: 9000,
-    minMarginPercent: 35,
-    promoted: false,
-    variantsCount: 1,
-    stockTotal: 10
-  })
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [pRes, cRes] = await Promise.all([
+        apiListProducts({ search: search || undefined, page, size: 20 }),
+        apiListCategories({ size: 100 }),
+      ])
+      setProducts(pRes.items)
+      setTotal(pRes.total)
+      setCategories(cRes.items)
+    } catch {
+      toast({ title: "Error", description: "Failed to load products", type: "error" })
+    } finally {
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, page])
 
-  const calculatedMargin = formData.sellPrice > 0
-    ? (((formData.sellPrice - formData.costPrice) / formData.sellPrice) * 100).toFixed(1)
-    : "0.0"
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
 
-  const openCreateDrawer = () => {
-    setEditingProduct(null)
+  const openCreate = () => {
+    setEditingId(null)
+    setFormData(DEFAULT_FORM)
+    setDrawerOpen(true)
+  }
+
+  const openEdit = (p: ProductResponse) => {
+    setEditingId(p.id)
     setFormData({
-      sku: "",
-      name: "",
-      category: "Hardware",
-      costPrice: 5000,
-      sellPrice: 9000,
-      minMarginPercent: 35,
-      promoted: false,
-      variantsCount: 1,
-      stockTotal: 10
+      name: p.name, sku: p.sku || "",
+      description: p.description || "",
+      category_id: p.category_id,
+      list_price: p.list_price,
+      cost_price: p.cost_price,
+      is_recurring: p.is_recurring,
     })
     setDrawerOpen(true)
   }
 
-  const openEditDrawer = (prod: ProductItem) => {
-    setEditingProduct(prod)
-    setFormData({
-      sku: prod.sku,
-      name: prod.name,
-      category: prod.category,
-      costPrice: prod.costPrice,
-      sellPrice: prod.sellPrice,
-      minMarginPercent: prod.minMarginPercent,
-      promoted: prod.promoted,
-      variantsCount: prod.variantsCount,
-      stockTotal: prod.stockTotal
-    })
-    setDrawerOpen(true)
-  }
-
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.name || !formData.sku) {
-      toast({ title: "Validation Error", description: "SKU and product name are required.", type: "error" })
+    if (!formData.name || !formData.category_id) {
+      toast({ title: "Validation", description: "Name and category are required.", type: "error" })
       return
     }
-
-    if (editingProduct) {
-      store.updateProduct(editingProduct.id, formData)
-      toast({ title: "Product Updated", description: `${formData.name} catalog record saved.` })
-    } else {
-      store.addProduct(formData)
-      toast({ title: "Product Listed", description: `${formData.name} added to catalog.` })
-    }
-    setDrawerOpen(false)
-  }
-
-  const handleTogglePromoted = (prod: ProductItem) => {
-    store.togglePromoted(prod.id)
-    toast({
-      title: prod.promoted ? "Promotion Removed" : "Product Promoted",
-      description: `${prod.name} highlighted status updated.`
-    })
-  }
-
-  const productColumns: Column<ProductItem>[] = [
-    {
-      key: "sku",
-      header: "SKU Code",
-      render: (p) => <span className="font-mono text-xs font-semibold text-text-primary">{p.sku}</span>
-    },
-    {
-      key: "name",
-      header: "Product Title",
-      render: (p) => (
-        <div>
-          <div className="font-medium text-text-primary flex items-center gap-2">
-            {p.name}
-            {p.promoted && (
-              <span className="text-[10px] bg-accent/10 text-accent font-mono px-1.5 py-0.5 rounded">
-                PROMOTED
-              </span>
-            )}
-          </div>
-          <div className="text-xs text-text-secondary">{p.variantsCount} variant(s) configured</div>
-        </div>
-      )
-    },
-    {
-      key: "category",
-      header: "Category",
-      render: (p) => (
-        <Badge variant="secondary" className="text-xs font-mono">
-          {p.category}
-        </Badge>
-      )
-    },
-    {
-      key: "pricing",
-      header: "Cost / List Price",
-      render: (p) => (
-        <div className="font-mono text-xs">
-          <div className="text-text-primary font-medium">${p.sellPrice.toLocaleString()}</div>
-          <div className="text-text-muted text-[11px]">Cost: ${p.costPrice.toLocaleString()}</div>
-        </div>
-      )
-    },
-    {
-      key: "margin",
-      header: "Base Margin",
-      render: (p) => {
-        const marginVal = (((p.sellPrice - p.costPrice) / p.sellPrice) * 100).toFixed(1)
-        const isHealthy = Number(marginVal) >= p.minMarginPercent
-        return (
-          <div className="font-mono text-xs">
-            <span className={`font-semibold ${isHealthy ? "text-emerald-600" : "text-amber-600"}`}>
-              {marginVal}%
-            </span>
-            <span className="text-text-muted text-[10px] block">Floor: {p.minMarginPercent}%</span>
-          </div>
-        )
+    setSaving(true)
+    try {
+      if (editingId) {
+        await apiUpdateProduct(editingId, {
+          name: formData.name, sku: formData.sku || undefined,
+          description: formData.description || undefined,
+          category_id: formData.category_id,
+          list_price: formData.list_price,
+          cost_price: formData.cost_price,
+          is_recurring: formData.is_recurring,
+        })
+        toast({ title: "Product Updated" })
+      } else {
+        await apiCreateProduct({
+          name: formData.name, sku: formData.sku || undefined,
+          description: formData.description || undefined,
+          category_id: formData.category_id,
+          list_price: formData.list_price,
+          cost_price: formData.cost_price,
+          is_recurring: formData.is_recurring,
+        })
+        toast({ title: "Product Created" })
       }
-    },
-    {
-      key: "stockTotal",
-      header: "Inventory",
-      render: (p) => (
-        <span className="font-mono text-xs">
-          {p.category === "Software" ? "Unlimited (Cloud)" : `${p.stockTotal} in stock`}
-        </span>
-      )
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      className: "text-right",
-      render: (p) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="ghost"
-            className="h-7 px-2 text-xs"
-            onClick={() => handleTogglePromoted(p)}
-          >
-            {p.promoted ? "Unstar" : "Promote"}
-          </Button>
-          <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => openEditDrawer(p)}>
-            Edit
-          </Button>
-        </div>
-      )
+      setDrawerOpen(false)
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Save failed"
+      toast({ title: "Error", description: msg, type: "error" })
+    } finally {
+      setSaving(false)
     }
-  ]
+  }
 
-  const categoryColumns: Column<CategoryCeilingItem>[] = [
-    {
-      key: "category",
-      header: "Product Category",
-      render: (c) => <span className="font-semibold text-text-primary">{c.category}</span>
-    },
-    {
-      key: "bronze",
-      header: "Bronze Max Disc",
-      render: (c) => <span className="font-mono text-xs">{c.bronzeMaxDisc}%</span>
-    },
-    {
-      key: "silver",
-      header: "Silver Max Disc",
-      render: (c) => <span className="font-mono text-xs">{c.silverMaxDisc}%</span>
-    },
-    {
-      key: "gold",
-      header: "Gold Max Disc",
-      render: (c) => <span className="font-mono text-xs font-semibold text-accent">{c.goldMaxDisc}%</span>
-    },
-    {
-      key: "platinum",
-      header: "Platinum Max Disc",
-      render: (c) => <span className="font-mono text-xs font-semibold text-purple-600">{c.platinumMaxDisc}%</span>
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}"?`)) return
+    try {
+      await apiDeleteProduct(id)
+      toast({ title: "Deleted", description: `${name} removed.` })
+      load()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Delete failed"
+      toast({ title: "Error", description: msg, type: "error" })
     }
-  ]
+  }
+
+  const catName = (id: string) => categories.find((c) => c.id === id)?.name || "—"
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Catalog & Category Margins</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Product Catalog</h1>
           <p className="text-sm text-text-secondary mt-1">
-            Product master catalog, pricing floors, stock units, and category discount ceilings.
+            Manage SKUs, variants, categories, and pricing benchmarks.
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex bg-surface border border-border rounded p-0.5">
-            <button
-              onClick={() => setActiveTab("products")}
-              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                activeTab === "products" ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              Products List ({store.products.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("categories")}
-              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                activeTab === "categories" ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              Category Ceilings ({store.categoryCeilings.length})
-            </button>
-          </div>
-
-          {activeTab === "products" && (
-            <Button onClick={openCreateDrawer}>
-              + Add Product
-            </Button>
-          )}
-        </div>
+        <Button onClick={openCreate}>+ Add Product</Button>
       </div>
 
-      {activeTab === "products" ? (
-        <DataTable
-          data={store.products}
-          columns={productColumns}
-          searchPlaceholder="Filter catalog by SKU, name, or category..."
-          searchKey={(p) => `${p.sku} ${p.name} ${p.category}`}
-          title="Master Product Catalog"
-          subtitle="Real-time margin floors calculated against base cost"
+      <div className="flex items-center gap-3">
+        <Input
+          placeholder="Search products…"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          className="max-w-xs"
         />
-      ) : (
-        <DataTable
-          data={store.categoryCeilings}
-          columns={categoryColumns}
-          title="Category Discount Ceilings Matrix"
-          subtitle="Maximum autonomous discount allowances by customer tier"
-        />
+        <span className="text-xs text-text-muted">{total} SKUs</span>
+      </div>
+
+      <div className="border border-border rounded-lg overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
+            <tr>
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">SKU</th>
+              <th className="px-4 py-3">Category</th>
+              <th className="px-4 py-3">List Price</th>
+              <th className="px-4 py-3">Margin %</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {loading ? (
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-text-muted">Loading…</td></tr>
+            ) : products.length === 0 ? (
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-text-muted">No products found.</td></tr>
+            ) : products.map((p) => (
+              <tr key={p.id} className="hover:bg-surface/60">
+                <td className="px-4 py-3">
+                  <div className="font-semibold text-text-primary">{p.name}</div>
+                  {p.variants.length > 0 && (
+                    <div className="text-xs text-text-muted">{p.variants.length} variant{p.variants.length > 1 ? "s" : ""}</div>
+                  )}
+                </td>
+                <td className="px-4 py-3 font-mono text-xs text-text-muted">{p.sku || "—"}</td>
+                <td className="px-4 py-3 text-xs text-text-secondary">{catName(p.category_id)}</td>
+                <td className="px-4 py-3 font-mono font-semibold">${p.list_price.toLocaleString()}</td>
+                <td className="px-4 py-3 font-mono">
+                  {p.margin_pct != null ? (
+                    <span className={p.margin_pct >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
+                      {p.margin_pct.toFixed(1)}%
+                    </span>
+                  ) : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <Badge variant="secondary" className={`text-xs ${p.is_recurring ? "text-purple-600 border-purple-500/40" : ""}`}>
+                    {p.is_recurring ? "Recurring" : "One-time"}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <Badge variant={p.is_active ? "default" : "secondary"} className="text-xs">
+                    {p.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" className="h-7 px-2.5 text-xs" onClick={() => openEdit(p)}>Edit</Button>
+                    <Button variant="ghost" className="h-7 px-2.5 text-xs text-danger hover:text-danger" onClick={() => handleDelete(p.id, p.name)}>Del</Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {total > 20 && (
+        <div className="flex items-center justify-between text-xs text-text-muted">
+          <span>Page {page} of {Math.ceil(total / 20)}</span>
+          <div className="flex gap-2">
+            <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Prev</Button>
+            <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>Next →</Button>
+          </div>
+        </div>
       )}
 
-      {/* Product Drawer */}
       <FormDrawer
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title={editingProduct ? "Edit Catalog Item" : "Create Product SKU"}
-        subtitle="Specify cost structures, margin floor, and category tagging"
+        title={editingId ? "Edit Product" : "Add Product to Catalog"}
+        subtitle="Define SKU, pricing, and category"
         footerActions={
           <>
-            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>
-              {editingProduct ? "Save Product" : "Publish to Catalog"}
-            </Button>
+            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : editingId ? "Save Changes" : "Create Product"}</Button>
           </>
         }
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">SKU Identifier</label>
-            <Input
-              value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
-              placeholder="e.g. HW-GPU-A100"
-              required
-            />
+            <label className="block text-xs font-medium text-text-secondary mb-1">Product Name *</label>
+            <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enterprise SaaS Suite" required />
           </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Product Title</label>
-            <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g. NVIDIA A100 Tensor Core Node"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">Category</label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as ProductItem["category"] })}
-              className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm text-text-primary focus:outline-none focus:border-accent"
-            >
-              <option value="Hardware">Hardware (Servers, Blades, Racks)</option>
-              <option value="Software">Software (Licenses, SaaS, Modules)</option>
-              <option value="Services">Services (Architecture, Migration)</option>
-              <option value="Add-ons">Add-ons (Support, Care Packs)</option>
-            </select>
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">SKU Code</label>
+              <Input value={formData.sku} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} placeholder="SaaS-ENT-001" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Category *</label>
+              <select
+                value={formData.category_id}
+                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:border-accent"
+                required
+              >
+                <option value="">Select…</option>
+                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">List Price ($)</label>
+              <Input type="number" min={0} step={0.01} value={formData.list_price} onChange={(e) => setFormData({ ...formData, list_price: parseFloat(e.target.value) || 0 })} />
+            </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1">Cost Price ($)</label>
-              <Input
-                type="number"
-                value={formData.costPrice}
-                onChange={(e) => setFormData({ ...formData, costPrice: Number(e.target.value) })}
-                min={0}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Sell Price ($)</label>
-              <Input
-                type="number"
-                value={formData.sellPrice}
-                onChange={(e) => setFormData({ ...formData, sellPrice: Number(e.target.value) })}
-                min={0}
-              />
+              <Input type="number" min={0} step={0.01} value={formData.cost_price} onChange={(e) => setFormData({ ...formData, cost_price: parseFloat(e.target.value) || 0 })} />
             </div>
           </div>
-
-          <div className="p-3 bg-background border border-border rounded text-xs flex items-center justify-between">
-            <span className="text-text-secondary">Resulting Gross Margin:</span>
-            <span className="font-mono font-bold text-accent">{calculatedMargin}%</span>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Description</label>
+            <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Brief product description…" />
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Min Floor Margin (%)</label>
-              <Input
-                type="number"
-                value={formData.minMarginPercent}
-                onChange={(e) => setFormData({ ...formData, minMarginPercent: Number(e.target.value) })}
-                min={0}
-                max={100}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">Initial Stock Units</label>
-              <Input
-                type="number"
-                value={formData.stockTotal}
-                onChange={(e) => setFormData({ ...formData, stockTotal: Number(e.target.value) })}
-                min={0}
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="is_recurring"
+              checked={formData.is_recurring}
+              onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+              className="rounded border-border"
+            />
+            <label htmlFor="is_recurring" className="text-sm text-text-primary cursor-pointer">Recurring / Subscription product</label>
           </div>
         </form>
       </FormDrawer>
