@@ -142,13 +142,13 @@ async def seed_db(db: AsyncSession):
     logger.info("Category ceilings seeded.")
 
     # ── Approval Rules ────────────────────────────────────────────────────────
-    _, c1 = await _get_or_create(db, ApprovalRule, {"name": "Low Risk"}, {
+    c1, _ = await _get_or_create(db, ApprovalRule, {"name": "Low Risk"}, {
         "min_risk": Decimal("0"), "max_risk": Decimal("5"),
-        "steps": ["sales_manager"], "is_active": True,
+        "steps": ["sales_manager"], "is_active": True
     })
-    _, c2 = await _get_or_create(db, ApprovalRule, {"name": "High Risk"}, {
+    c2, _ = await _get_or_create(db, ApprovalRule, {"name": "High Risk"}, {
         "min_risk": Decimal("5"), "max_risk": None,
-        "steps": ["sales_manager", "finance"], "is_active": True,
+        "steps": ["sales_manager", "finance"], "is_active": True
     })
     logger.info("Approval rules seeded.")
 
@@ -256,8 +256,137 @@ async def seed_db(db: AsyncSession):
             ))
     logger.info("Upsell rules seeded.")
 
+    # ── Quotations (4 Demos) ──────────────────────────────────────────────────
+    from app.models.quotation import Quotation, QuotationLine, QuotationEvent, ApprovalRequest, ApprovalStep
+    from app.models.enums import QuotationStatus, ApprovalStatus, EventType, ApprovalTrigger
+    from app.services.quotation_calc import recompute
+    from sqlalchemy import text
+    from datetime import datetime, timezone
+    import json
+    
+    rep = (await db.execute(select(User).where(User.email == "rep@dealflow.local"))).scalars().first()
+    manager = (await db.execute(select(User).where(User.email == "manager@dealflow.local"))).scalars().first()
+    
+    # Helper to get next number
+    async def get_q_num():
+        val = (await db.execute(text("SELECT nextval('quotation_seq')"))).scalar()
+        return f"Q-{datetime.now(timezone.utc).year}-{val:04d}"
+        
+    # 1. Acme (Gold) — draft: Server 1U ×50 @ 12%, Implementation @ 18% -> Manager + Finance
+    q1 = (await db.execute(select(Quotation).where(Quotation.customer_id == acme.id, Quotation.status == QuotationStatus.draft))).scalars().first()
+    if not q1:
+        q1 = Quotation(
+            number=await get_q_num(), customer_id=acme.id, rep_id=rep.id, currency="USD", status=QuotationStatus.draft,
+        )
+        
+        l1 = QuotationLine(
+            product_id=products["HW-SRV-1U"].id, description=products["HW-SRV-1U"].name, category_id=products["HW-SRV-1U"].category_id,
+            unit_price=products["HW-SRV-1U"].list_price, cost_price=products["HW-SRV-1U"].cost_price, tax_pct=products["HW-SRV-1U"].tax_pct,
+            qty=Decimal("50"), discount_pct=Decimal("12"), allowed_discount_pct=Decimal("15"), sort_order=0
+        )
+        l2 = QuotationLine(
+            product_id=products["SVC-IMPL"].id, description=products["SVC-IMPL"].name, category_id=products["SVC-IMPL"].category_id,
+            unit_price=products["SVC-IMPL"].list_price, cost_price=products["SVC-IMPL"].cost_price, tax_pct=products["SVC-IMPL"].tax_pct,
+            qty=Decimal("1"), discount_pct=Decimal("18"), allowed_discount_pct=Decimal("10"), sort_order=1 # Exceeds ceiling
+        )
+        q1.lines.extend([l1, l2])
+        recompute(q1)
+        
+        db.add(q1)
+        await db.flush()
+        
+        # Manually compute risk to avoid cyclic imports with services
+        q1.risk_score = Decimal("8.50")
+        q1.risk_breakdown = {"violations_count": 1, "risk": 8.5}
+        
+        db.add(QuotationEvent(quotation_id=q1.id, type=EventType.created, actor_id=rep.id, message="Created draft."))
+        logger.info("Created Demo Q1 (Draft)")
+        
+    # 2. Beta (Bronze) — pending_approval: one line at 8% (allowed 5)
+    q2 = (await db.execute(select(Quotation).where(Quotation.customer_id == beta.id, Quotation.status == QuotationStatus.pending_approval))).scalars().first()
+    if not q2:
+        q2 = Quotation(
+            number=await get_q_num(), customer_id=beta.id, rep_id=rep.id, currency="USD", status=QuotationStatus.pending_approval,
+        )
+        
+        l3 = QuotationLine(
+            product_id=products["HW-SW-24"].id, description=products["HW-SW-24"].name, category_id=products["HW-SW-24"].category_id,
+            unit_price=products["HW-SW-24"].list_price, cost_price=products["HW-SW-24"].cost_price, tax_pct=products["HW-SW-24"].tax_pct,
+            qty=Decimal("5"), discount_pct=Decimal("8"), allowed_discount_pct=Decimal("5"), sort_order=0
+        )
+        q2.lines.append(l3)
+        recompute(q2)
+        q2.risk_score = Decimal("4.00")
+        q2.risk_breakdown = {"violations_count": 1, "risk": 4.0}
+        
+        db.add(q2)
+        await db.flush()
+        
+        req2 = ApprovalRequest(quotation_id=q2.id, trigger=ApprovalTrigger.rep_confirm, risk_score=Decimal("4.0"), rule_id=c1.id, status=ApprovalStatus.pending, current_step_seq=1, created_by=rep.id)
+        db.add(req2)
+        await db.flush()
+        q2.current_approval_request_id = req2.id
+        
+        step2 = ApprovalStep(request_id=req2.id, seq=1, required_role="sales_manager", status=ApprovalStatus.pending)
+        db.add(step2)
+        
+        db.add(QuotationEvent(quotation_id=q2.id, type=EventType.approval_requested, actor_id=rep.id, message="Requested approval."))
+        logger.info("Created Demo Q2 (Pending Approval)")
+
+    # 3. Acme — approved: clean, no discount
+    q3 = (await db.execute(select(Quotation).where(Quotation.customer_id == acme.id, Quotation.status == QuotationStatus.approved))).scalars().first()
+    if not q3:
+        q3 = Quotation(
+            number=await get_q_num(), customer_id=acme.id, rep_id=rep.id, currency="USD", status=QuotationStatus.approved,
+        )
+        
+        l4 = QuotationLine(
+            product_id=products["SUB-CRM-A"].id, description=products["SUB-CRM-A"].name, category_id=products["SUB-CRM-A"].category_id,
+            unit_price=products["SUB-CRM-A"].list_price, cost_price=products["SUB-CRM-A"].cost_price, tax_pct=products["SUB-CRM-A"].tax_pct,
+            qty=Decimal("10"), discount_pct=Decimal("0"), allowed_discount_pct=Decimal("5"), sort_order=0
+        )
+        q3.lines.append(l4)
+        recompute(q3)
+        q3.risk_score = Decimal("0")
+        
+        db.add(q3)
+        await db.flush()
+        
+        db.add(QuotationEvent(quotation_id=q3.id, type=EventType.auto_approved, actor_id=rep.id, message="Auto-approved (no discount)."))
+        logger.info("Created Demo Q3 (Approved)")
+
+    # 4. Beta — rejected: with a manager comment
+    q4 = (await db.execute(select(Quotation).where(Quotation.customer_id == beta.id, Quotation.status == QuotationStatus.rejected))).scalars().first()
+    if not q4:
+        q4 = Quotation(
+            number=await get_q_num(), customer_id=beta.id, rep_id=rep.id, currency="USD", status=QuotationStatus.rejected,
+        )
+        
+        l5 = QuotationLine(
+            product_id=products["SVC-AUDIT"].id, description=products["SVC-AUDIT"].name, category_id=products["SVC-AUDIT"].category_id,
+            unit_price=products["SVC-AUDIT"].list_price, cost_price=products["SVC-AUDIT"].cost_price, tax_pct=products["SVC-AUDIT"].tax_pct,
+            qty=Decimal("1"), discount_pct=Decimal("20"), allowed_discount_pct=Decimal("10"), sort_order=0
+        )
+        q4.lines.append(l5)
+        recompute(q4)
+        q4.risk_score = Decimal("9.0")
+        
+        db.add(q4)
+        await db.flush()
+        
+        req4 = ApprovalRequest(quotation_id=q4.id, trigger=ApprovalTrigger.rep_confirm, risk_score=Decimal("9.0"), rule_id=c2.id, status=ApprovalStatus.rejected, current_step_seq=1, created_by=rep.id, resolved_at=datetime.now(timezone.utc))
+        db.add(req4)
+        await db.flush()
+        q4.current_approval_request_id = req4.id
+        
+        step4 = ApprovalStep(request_id=req4.id, seq=1, required_role="sales_manager", status=ApprovalStatus.rejected, acted_by=manager.id, acted_at=datetime.now(timezone.utc), comment="Discount too high for a Bronze customer.")
+        db.add(step4)
+        
+        db.add(QuotationEvent(quotation_id=q4.id, type=EventType.step_rejected, actor_id=manager.id, message="Step 1 rejected. Reason: Discount too high for a Bronze customer.", payload={"comment": "Discount too high for a Bronze customer."}))
+        logger.info("Created Demo Q4 (Rejected)")
+
     await db.commit()
-    logger.info("✅ Seed v2 complete.")
+    logger.info("✅ Seed v2 complete (incl. Quotations).")
 
 
 async def main():
