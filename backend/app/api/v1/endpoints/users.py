@@ -33,6 +33,7 @@ async def change_password(data: ChangePasswordRequest, db: AsyncSession = Depend
     current_user.token_version += 1 # Invalidate all sessions
     
     await log_audit(db, "user", current_user.id, "change_password", current_user.id)
+    await revoke_all_refresh_tokens(db, current_user.id)
     await db.commit()
     return {"message": "Password changed successfully."}
 
@@ -129,7 +130,7 @@ async def update_user(
         user.token_version += 1
         await revoke_all_refresh_tokens(db, user.id)
 
-    await log_audit(db, "user", user.id, "update", current_user.id, "Admin updated user", data.model_dump(exclude_unset=True))
+    await log_audit(db, "user", user.id, "update", current_user.id, "Admin updated user", data.model_dump(exclude_unset=True, mode='json'))
 
     await db.commit()
     await db.refresh(user)

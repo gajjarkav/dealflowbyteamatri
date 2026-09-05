@@ -4,6 +4,7 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from app.db.session import AsyncSessionLocal
 from app.core.config import settings
 from app.models.user import User
@@ -30,7 +31,7 @@ async def get_current_user(
     except jwt.PyJWTError:
         raise UnauthorizedError("Could not validate credentials")
 
-    stmt = select(User).where(User.id == user_id)
+    stmt = select(User).where(User.id == user_id).options(selectinload(User.customer))
     result = await db.execute(stmt)
     user = result.scalars().first()
 

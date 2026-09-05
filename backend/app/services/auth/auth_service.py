@@ -114,7 +114,7 @@ async def verify_otp_signup(db: AsyncSession, email: str, code: str):
         raise BadRequestError("Invalid email or code.")
     
     if user.is_email_verified:
-        return {"message": "Already verified, please log in"}
+        raise BadRequestError("Already verified, please log in")
 
     stmt = select(VerificationCode).where(
         VerificationCode.user_id == user.id,
