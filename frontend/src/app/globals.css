@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  /* === FONTS === */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-playfair: var(--font-playfair), ui-serif, serif;
+
+  /* === LIGHT MODE COLORS (Warm Theme) === */
+  --color-background: #FDFBF7;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F4F4F5;
+  --color-border: #E4E4E7;
+  --color-border-strong: #D4D4D8;
+  --color-text-primary: #09090B;
+  --color-text-secondary: #52525B;
+  --color-text-muted: #71717A;
+  --color-accent: #C2410C;
+  --color-accent-hover: #9A3412;
+  --color-accent-soft: #FFEDD5;
+  --color-success: #15803D;
+  --color-success-soft: #F0FDF4;
+  --color-warning: #B45309;
+  --color-warning-soft: #FFFBEB;
+  --color-danger: #B91C1C;
+  --color-danger-soft: #FEF2F2;
+
+  /* === RADIUS === */
+  --radius: 4px;
+  --radius-md: 6px;
+  --radius-full: 9999px;
+
+  /* === SHADOWS === */
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.075), 0 2px 4px -2px rgba(0, 0, 0, 0.075);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  --color-background: #0A0A0B;
+  --color-surface: #18181B;
+  --color-surface-hover: #27272A;
+  --color-border: #27272A;
+  --color-border-strong: #3F3F46;
+  --color-text-primary: #FAFAFA;
+  --color-text-secondary: #A1A1AA;
+  --color-text-muted: #71717A;
+  --color-accent: #E96B56;
+  --color-accent-hover: #F87171;
+  --color-accent-soft: #7F1D1D;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
