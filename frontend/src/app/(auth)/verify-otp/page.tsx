@@ -71,7 +71,7 @@ function VerifyOtpContent() {
   const handleResend = async () => {
     if (timer > 0) return
     try {
-      await resendOtp(email, purpose === "signup" ? "signup" : "login_2fa")
+      await resendOtp(email, purpose === "signup" ? "signup_verify" : "password_reset")
       setTimer(60)
     } catch {
       setError("Failed to resend OTP")
@@ -122,19 +122,21 @@ function VerifyOtpContent() {
         </Button>
       </form>
 
-      <div className="mt-6 text-center text-sm">
-        <button
-          onClick={handleResend}
-          disabled={timer > 0}
-          className={`font-medium transition-colors ${
-            timer > 0
-              ? "text-text-muted cursor-not-allowed"
-              : "text-accent hover:text-accent-hover"
-          }`}
-        >
-          {timer > 0 ? `Didn't receive? Resend in ${timer}s` : "Resend code"}
-        </button>
-      </div>
+      {purpose !== "login_2fa" && (
+        <div className="mt-6 text-center text-sm">
+          <button
+            onClick={handleResend}
+            disabled={timer > 0}
+            className={`font-medium transition-colors ${
+              timer > 0
+                ? "text-text-muted cursor-not-allowed"
+                : "text-accent hover:text-accent-hover"
+            }`}
+          >
+            {timer > 0 ? `Didn't receive? Resend in ${timer}s` : "Resend code"}
+          </button>
+        </div>
+      )}
 
       <div className="mt-4 text-center text-sm text-text-secondary">
         <Link href="/login" className="hover:text-accent transition-colors">

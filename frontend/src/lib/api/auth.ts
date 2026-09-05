@@ -9,7 +9,7 @@ export interface TokenResponse {
 }
 
 export interface Login2FAResponse {
-  requires_2fa: true
+  require_2fa: true
   email: string
 }
 
@@ -103,7 +103,7 @@ export async function apiResetPassword(
 
 export async function apiResendOtp(
   email: string,
-  purpose: "signup" | "login_2fa" | "reset_password"
+  purpose: "signup_verify" | "password_reset"
 ) {
   return apiFetch("/auth/resend-otp", {
     method: "POST",

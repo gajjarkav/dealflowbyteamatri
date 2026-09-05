@@ -75,6 +75,7 @@ async def create(
     current_user: User = Depends(get_current_internal_user),
 ):
     q = await create_quotation(db, data.customer_id, current_user, data.notes, data.promised_date)
+    q = (await db.execute(select(Quotation).options(*_load_options()).where(Quotation.id == q.id))).scalars().first()
     return QuotationResponse.from_orm(q)
 
 @router.get("/{id}", response_model=QuotationResponse)

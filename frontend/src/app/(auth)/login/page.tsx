@@ -32,7 +32,7 @@ export default function LoginPage() {
       if (result.requires2FA) {
         // Store email in session for 2FA step
         sessionStorage.setItem("2fa_email", result.email || email)
-        router.push("/verify-otp?purpose=login")
+        router.push("/verify-otp?purpose=login_2fa")
       } else {
         router.push("/dashboard")
       }

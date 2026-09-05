@@ -48,7 +48,7 @@ export default function CustomersPage() {
       const res = await apiListCustomers({ search: search || undefined, page, size: 20 })
       setCustomers(res.items)
       setTotal(res.total)
-    } catch (_err: unknown) {
+    } catch {
       toast({ title: "Error", description: "Failed to load customers", type: "error" })
     } finally {
       setLoading(false)
