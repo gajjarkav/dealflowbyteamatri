@@ -22,6 +22,15 @@ def generate_otp() -> str:
 def hash_token_sha256(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
+async def revoke_all_refresh_tokens(db: AsyncSession, user_id: uuid.UUID):
+    stmt = select(RefreshToken).where(
+        RefreshToken.user_id == user_id,
+        RefreshToken.revoked_at.is_(None)
+    )
+    result = await db.execute(stmt)
+    for token in result.scalars().all():
+        token.revoked_at = datetime.now(timezone.utc)
+
 async def check_otp_rate_limit(db: AsyncSession, user_id: uuid.UUID, purpose: PurposeEnum):
     stmt = select(VerificationCode).where(
         VerificationCode.user_id == user_id,
@@ -105,7 +114,7 @@ async def verify_otp_signup(db: AsyncSession, email: str, code: str):
         raise BadRequestError("Invalid email or code.")
     
     if user.is_email_verified:
-        return await _issue_tokens(db, user)
+        return {"message": "Already verified, please log in"}
 
     stmt = select(VerificationCode).where(
         VerificationCode.user_id == user.id,
@@ -248,6 +257,8 @@ async def _issue_tokens(db: AsyncSession, user: User):
         "refresh_token": refresh_token_str,
         "user_id": user.id,
         "role": user.role,
+        "full_name": user.full_name,
+        "must_change_password": user.must_change_password,
         "customer_id": user.customer_id
     }
 
@@ -292,6 +303,7 @@ async def logout_user(db: AsyncSession, user: User, refresh_token: str):
     
     # Bump token version to revoke ALL active access tokens immediately
     user.token_version += 1
+    await revoke_all_refresh_tokens(db, user.id)
     await db.commit()
 
     return {"message": "Successfully logged out from all devices."}
@@ -360,6 +372,7 @@ async def reset_password(db: AsyncSession, email: str, code: str, new_password: 
     user.locked_until = None
     
     await log_audit(db, "user", user.id, "reset_password", user.id)
+    await revoke_all_refresh_tokens(db, user.id)
     await db.commit()
 
     return {"message": "Password successfully reset. You can now log in."}
@@ -371,6 +384,9 @@ async def resend_otp(db: AsyncSession, email: str, purpose: PurposeEnum, backgro
 
     if not user or not user.is_active:
         return {"message": "If that email exists, a new code has been sent."}
+        
+    if purpose not in [PurposeEnum.signup_verify, PurposeEnum.password_reset]:
+        raise BadRequestError("Cannot resend this type of OTP.")
 
     await check_otp_rate_limit(db, user.id, purpose)
 

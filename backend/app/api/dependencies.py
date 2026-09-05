@@ -48,6 +48,15 @@ async def get_current_internal_user(current_user: User = Depends(get_current_use
         raise ForbiddenError("Portal tokens cannot access internal API")
     return current_user
 
+def require_roles(*roles: RoleEnum):
+    async def role_checker(current_user: User = Depends(get_current_internal_user)) -> User:
+        if current_user.role == RoleEnum.admin:
+            return current_user
+        if current_user.role not in roles:
+            raise ForbiddenError("You do not have the required role to access this resource.")
+        return current_user
+    return role_checker
+
 async def get_current_customer(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != RoleEnum.customer:
         raise ForbiddenError("Internal tokens cannot access portal API")

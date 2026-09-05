@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator, model_validator
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
@@ -35,8 +35,26 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: Optional[str] = Field(None, min_length=8)
-    customer_id: Optional[UUID] = None
-    is_system: bool = False
+
+class PortalMeResponse(BaseModel):
+    full_name: str
+    email: EmailStr
+    company_name: str
+    tier: TierEnum
+    
+    model_config = ConfigDict(from_attributes=True)
+    
+    @model_validator(mode='before')
+    @classmethod
+    def extract_customer_info(cls, data: any):
+        if hasattr(data, 'customer') and data.customer:
+            return {
+                "full_name": data.full_name,
+                "email": data.email,
+                "company_name": data.customer.company_name,
+                "tier": data.customer.tier
+            }
+        return data
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None

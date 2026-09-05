@@ -12,7 +12,7 @@ class Customer(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_name: Mapped[str] = mapped_column(String, index=True)
-    tier: Mapped[TierEnum] = mapped_column(Enum(TierEnum), default=TierEnum.bronze)
+    tier: Mapped[TierEnum] = mapped_column(Enum(TierEnum, native_enum=False), default=TierEnum.bronze)
     currency: Mapped[str] = mapped_column(String, default="USD")
     billing_address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     tax_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -28,7 +28,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, unique=True, index=True)
     password_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     mobile_number: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    role: Mapped[RoleEnum] = mapped_column(Enum(RoleEnum), default=RoleEnum.customer)
+    role: Mapped[RoleEnum] = mapped_column(Enum(RoleEnum, native_enum=False), default=RoleEnum.customer)
     
     customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=True)
     

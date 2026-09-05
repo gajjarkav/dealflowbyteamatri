@@ -13,7 +13,7 @@ class VerificationCode(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
-    purpose: Mapped[PurposeEnum] = mapped_column(Enum(PurposeEnum))
+    purpose: Mapped[PurposeEnum] = mapped_column(Enum(PurposeEnum, native_enum=False))
     code_hash: Mapped[str] = mapped_column(String)
     
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

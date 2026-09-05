@@ -13,6 +13,8 @@ class TokenResponse(BaseModel):
     refresh_token: Optional[str] = None
     user_id: UUID
     role: RoleEnum
+    full_name: str
+    must_change_password: bool
     customer_id: Optional[UUID] = None
 
 class Login2FAResponse(BaseModel):
