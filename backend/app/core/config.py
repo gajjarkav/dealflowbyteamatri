@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:3000", 
+        "http://localhost:8000",
+        "https://dealflowbyteamatri.vercel.app",
+        "https://dealflowbyteamatri.onrender.com"
+    ]
     
     # EMAIL
     EMAIL_BACKEND: str = "console" # or "smtp"
