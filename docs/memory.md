@@ -86,7 +86,7 @@
 - ✅ Wrote 6 planning documents + 3 helper files in `/home/z/my-project/download/dealflow360-docs/`
 
 **Not done yet**:
-- ❌ The 6+3 .md files have NOT been committed to the GitHub repo yet — copy them into `docs/` at repo root during Phase 0
+- ✅ The core planning .md files have been moved into `docs/` at repo root.
 - ❌ The Next.js 16 frontend has NOT been scaffolded yet
 - ❌ No code has been written
 
@@ -122,7 +122,7 @@
 
 ### Right now (just starting), the next 3 actions are:
 
-1. **Copy the 9 .md files** from `/home/z/my-project/download/dealflow360-docs/` into the user's local clone of `https://github.com/gajjarkav/dealflowbyteamatri.git` under `docs/` (create the folder).
+1. ✅ **Moved the .md files** into `docs/` at the repo root.
 2. **Follow `install-commands.md`** to scaffold the Next.js 16 frontend in `frontend/`.
 3. **Follow Phase 0 in `phase.md`** to verify the setup, run `npm run lint && npm run build`, and commit.
 
