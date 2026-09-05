@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     
     # SECURITY
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8 # 8 days
-    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30 # 30 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 # 30 mins
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
     ALGORITHM: str = "HS256"
     
     # DATABASE

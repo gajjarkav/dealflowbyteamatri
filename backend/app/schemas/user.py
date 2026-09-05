@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
@@ -25,7 +25,13 @@ class UserBase(BaseModel):
     mobile_number: Optional[str] = None
     role: RoleEnum = RoleEnum.customer
     is_active: bool = True
-    team_id: Optional[UUID] = None
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def to_lower(cls, v: str) -> str:
+        if isinstance(v, str):
+            return v.lower()
+        return v
 
 class UserCreate(UserBase):
     password: Optional[str] = Field(None, min_length=8)
@@ -55,3 +61,10 @@ class CustomerRegister(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     mobile_number: Optional[str] = None
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def to_lower(cls, v: str) -> str:
+        if isinstance(v, str):
+            return v.lower()
+        return v

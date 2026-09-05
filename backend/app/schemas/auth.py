@@ -34,3 +34,11 @@ class ResetPasswordRequest(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+class ResendOTPRequest(BaseModel):
+    email: EmailStr
+    purpose: str
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
