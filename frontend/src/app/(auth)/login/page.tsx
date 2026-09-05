@@ -31,7 +31,7 @@ export default function LoginPage() {
       const result = await login(email, password)
       if (result.requires2FA) {
         sessionStorage.setItem("2fa_email", result.email || email)
-        router.push("/verify-otp?purpose=login")
+        router.push("/verify-otp?purpose=login_2fa")
       } else {
         router.push("/dashboard")
       }

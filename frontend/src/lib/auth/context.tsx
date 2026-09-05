@@ -12,7 +12,7 @@ import {
   apiResendOtp,
 } from "@/lib/api/auth"
 import { apiGetMe } from "@/lib/api/users"
-import { getRefreshToken, clearTokens } from "@/lib/api/client"
+import { getAccessToken, getRefreshToken, clearTokens } from "@/lib/api/client"
 import type { UserResponse } from "@/lib/api/users"
 
 // ── Context Types ──────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ interface AuthContextType {
   verify2FA: (email: string, code: string) => Promise<void>
   forgotPassword: (email: string) => Promise<void>
   resetPassword: (email: string, code: string, newPassword: string) => Promise<void>
-  resendOtp: (email: string, purpose: "signup" | "login_2fa" | "reset_password") => Promise<void>
+  resendOtp: (email: string, purpose: "signup_verify" | "password_reset") => Promise<void>
   refreshUser: () => Promise<void>
 }
 
@@ -63,13 +63,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On mount: try to load current user using stored access token
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshUser().finally(() => setIsLoading(false))
+    const init = async () => {
+      if (!getAccessToken()) {
+        setIsLoading(false)
+        return
+      }
+      await refreshUser()
+      setIsLoading(false)
+    }
+    init()
   }, [refreshUser])
 
   const login = async (email: string, password: string) => {
     const res = await apiLogin(email, password)
-    if ("requires_2fa" in res && res.requires_2fa) {
+    if ("require_2fa" in res && res.require_2fa) {
       return { requires2FA: true, email: res.email }
     }
     // Tokens already stored by apiLogin
@@ -115,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resendOtp = async (
     email: string,
-    purpose: "signup" | "login_2fa" | "reset_password"
+    purpose: "signup_verify" | "password_reset"
   ) => {
     await apiResendOtp(email, purpose)
   }

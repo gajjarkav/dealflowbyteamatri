@@ -54,9 +54,9 @@ async def seed_db(db: AsyncSession):
 
     # ── Internal demo users ───────────────────────────────────────────────────
     for email, name, role in [
-        ("manager@dealflow.local", "Sarah Manager", RoleEnum.sales_manager),
-        ("rep@dealflow.local", "Tom Rep", RoleEnum.sales_rep),
-        ("finance@dealflow.local", "Finance User", RoleEnum.finance),
+        ("manager@dealflow.example.com", "Sarah Manager", RoleEnum.sales_manager),
+        ("rep@dealflow.example.com", "Tom Rep", RoleEnum.sales_rep),
+        ("finance@dealflow.example.com", "Finance User", RoleEnum.finance),
     ]:
         _, created = await _get_or_create(
             db, User, {"email": email},
@@ -180,8 +180,8 @@ async def seed_db(db: AsyncSession):
 
     # Portal users for customers
     for email, name, cust in [
-        ("acme@dealflow.local", "Acme Admin", acme),
-        ("beta@dealflow.local", "Beta Admin", beta),
+        ("acme@dealflow.example.com", "Acme Admin", acme),
+        ("beta@dealflow.example.com", "Beta Admin", beta),
     ]:
         _, created = await _get_or_create(db, User, {"email": email}, {
             "full_name": name, "password_hash": get_password_hash("password123"),
@@ -264,8 +264,8 @@ async def seed_db(db: AsyncSession):
     from datetime import datetime, timezone
     import json
     
-    rep = (await db.execute(select(User).where(User.email == "rep@dealflow.local"))).scalars().first()
-    manager = (await db.execute(select(User).where(User.email == "manager@dealflow.local"))).scalars().first()
+    rep = (await db.execute(select(User).where(User.email == "rep@dealflow.example.com"))).scalars().first()
+    manager = (await db.execute(select(User).where(User.email == "manager@dealflow.example.com"))).scalars().first()
     
     # Helper to get next number
     async def get_q_num():

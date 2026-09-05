@@ -96,16 +96,15 @@ async def add_line(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID
             raise NotFoundError("Variant not found or doesn't belong to product")
             
     # Resolve price using pricing logic
-    from app.api.v1.endpoints.pricing import resolve_price # Reusing logic from endpoint
+    from app.services.pricing_service import resolve_price_for_customer
     customer = (await db.execute(select(Customer).where(Customer.id == quotation.customer_id))).scalars().first()
     
-    price_info = await resolve_price(
+    price_info = await resolve_price_for_customer(
+        db=db,
         product_id=product.id,
         customer_id=customer.id if customer else None,
         variant_id=variant.id if variant else None,
-        qty=int(qty),
-        db=db,
-        _=actor
+        qty=int(qty)
     )
     unit_price = Decimal(price_info.unit_price)
     
@@ -139,6 +138,7 @@ async def add_line(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID
     
     db.add(line)
     quotation.lines.append(line)
+    await db.flush()
     
     await _trigger_reopen_if_needed(db, quotation, actor)
     
@@ -202,7 +202,7 @@ async def remove_line(db: AsyncSession, quotation: Quotation, line_id: uuid.UUID
         raise NotFoundError("Line not found")
         
     desc = line.description
-    db.delete(line)
+    await db.delete(line)
     quotation.lines.remove(line)
     
     await _trigger_reopen_if_needed(db, quotation, actor)
@@ -274,8 +274,9 @@ async def generate_risk_preview(db: AsyncSession, quotation: Quotation) -> dict:
         settings
     )
     
+    from fastapi.encoders import jsonable_encoder
     quotation.risk_score = risk_data["risk"]
-    quotation.risk_breakdown = risk_data
+    quotation.risk_breakdown = jsonable_encoder(risk_data)
     
     # Keep 'risk' for risk_breakdown, but add 'risk_score' for schema compatibility
     risk_data["risk_score"] = risk_data["risk"]

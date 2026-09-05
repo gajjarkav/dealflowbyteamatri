@@ -86,7 +86,8 @@ async function apiFetchInner(
 
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
 
-  if (res.status === 401 && retry) {
+  const isAuthEndpoint = path.startsWith("/auth/login") || path.startsWith("/auth/refresh")
+  if (res.status === 401 && retry && !isAuthEndpoint) {
     // Attempt token refresh
     if (isRefreshing) {
       // Queue behind the in-flight refresh
