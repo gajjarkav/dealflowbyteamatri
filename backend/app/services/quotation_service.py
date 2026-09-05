@@ -138,6 +138,7 @@ async def add_line(db: AsyncSession, quotation: Quotation, product_id: uuid.UUID
     
     db.add(line)
     quotation.lines.append(line)
+    await db.flush()
     
     await _trigger_reopen_if_needed(db, quotation, actor)
     
