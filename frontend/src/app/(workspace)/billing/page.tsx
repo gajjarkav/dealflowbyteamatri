@@ -8,7 +8,9 @@ import {
   Receipt,
   Search,
   Wallet,
+  Plus
 } from "lucide-react";
+import Link from "next/link";
 
 import { BentoCard, BentoGrid, BentoHeader, PageHeader, StatCard } from "@/components/bento/bento";
 import { StatusBadge } from "@/components/layout/status-badge";
@@ -64,6 +66,12 @@ export default function BillingPage() {
             <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
             Automatic Net-30 Engine Active
           </div>
+          <Button asChild size="sm" className="ml-2">
+            <Link href="/billing/invoices/new">
+              <Plus className="mr-1.5 size-4" />
+              New Invoice
+            </Link>
+          </Button>
         </div>
       </div>
 

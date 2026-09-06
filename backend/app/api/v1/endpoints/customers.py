@@ -74,7 +74,7 @@ async def list_customers(
     return paginate([CustomerWithUsers.model_validate(c) for c in items], total, page, size)
 
 
-@router.post("/", response_model=CustomerWithUsers)
+@router.post("", response_model=CustomerWithUsers)
 async def create_customer(
     data: CustomerCreate,
     background_tasks: BackgroundTasks,

@@ -107,7 +107,7 @@ export function CustomerForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {["Platinum", "Gold", "Silver", "Bronze"].map((option) => (
+                {["Gold", "Silver", "Bronze"].map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>

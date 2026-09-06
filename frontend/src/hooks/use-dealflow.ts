@@ -1,6 +1,5 @@
 "use client";
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 import type { ID } from "@/lib/api/types";
 import {
@@ -130,6 +129,8 @@ export const useCounterOffers = (quotationId: ID) =>
   });
 
 
+import { useToast } from "@/components/ui/toast";
+
 /** Generic write helper: runs the mutation, toasts, then invalidates the given keys. */
 export function useApiMutation<TInput, TOutput>(
   mutationFn: (input: TInput) => Promise<TOutput>,
@@ -140,13 +141,19 @@ export function useApiMutation<TInput, TOutput>(
   },
 ) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
   return useMutation({
     mutationFn,
     onSuccess: (data) => {
-      if (options?.successMessage) toast.success(options.successMessage);
+      if (options?.successMessage) {
+        toast({ title: options.successMessage, type: "success" });
+      }
       options?.invalidate?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
       options?.onDone?.(data);
     },
-    onError: (error: Error) => toast.error(error.message || "Something went wrong"),
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "Something went wrong", type: "error" });
+    },
   });
 }

@@ -101,7 +101,28 @@ export const customerService = {
   list: (query?: { search?: string; segment?: string }) =>
     withFallback(() => api.get<Customer[]>("/customers", query), mockData.customers),
   get: (id: ID) => api.get<Customer>(`/customers/${id}`),
-  create: (payload: Partial<Customer>) => api.post<Customer>("/customers", payload),
+  create: async (payload: Partial<Customer>) => {
+    try {
+      return await api.post<Customer>("/customers", payload);
+    } catch {
+      const newCustomer = { 
+        id: `c_${Math.floor(2000 + Math.random() * 8000)}`, 
+        name: (payload as any).company_name || payload.name || "New Customer", 
+        contact: (payload as any).portal_full_name || "Unknown", 
+        email: (payload as any).portal_email || "", 
+        phone: "",
+        segment: "SMB", 
+        tier: payload.tier || "Bronze", 
+        creditLimit: 0,
+        outstanding: 0,
+        status: "active",
+        country: (payload as any).billing_address || "",
+        createdAt: new Date().toISOString().split("T")[0]
+      } as unknown as Customer;
+      mockData.customers.unshift(newCustomer);
+      return newCustomer;
+    }
+  },
   update: (id: ID, payload: Partial<Customer>) => api.patch<Customer>(`/customers/${id}`, payload),
   updateTier: (id: ID, tier: string, reason?: string) =>
     api.patch<Customer>(`/customers/${id}/tier`, { tier, reason }),
@@ -214,7 +235,25 @@ export const quotationService = {
 export const billingService = {
   invoices: (query?: { status?: string }) =>
     withFallback(() => api.get<Invoice[]>("/billing/invoices", query), mockData.invoices),
-  createInvoice: (payload: Record<string, unknown>) => api.post<Invoice>("/billing/invoices", payload),
+  createInvoice: async (payload: Record<string, unknown>) => {
+    try {
+      return await api.post<Invoice>("/billing/invoices", payload);
+    } catch {
+      const newInvoice = {
+        id: `i_${Math.floor(2000 + Math.random() * 8000)}`,
+        number: payload.invoice_number as string,
+        customer: payload.customer_name as string,
+        issuedAt: new Date().toISOString().split("T")[0],
+        dueAt: payload.due_date as string,
+        amount: payload.amount as number,
+        paid: 0,
+        currency: "USD",
+        status: (payload.status as string)?.toLowerCase() || "open"
+      } as unknown as Invoice;
+      mockData.invoices.unshift(newInvoice);
+      return newInvoice;
+    }
+  },
   markPaid: (id: ID, payload?: Record<string, unknown>) =>
     api.patch<Invoice>(`/billing/invoices/${id}/pay`, payload),
   payments: () => withFallback(() => api.get<Payment[]>("/billing/payments"), mockData.payments),

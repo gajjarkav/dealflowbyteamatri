@@ -49,13 +49,14 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       case "dashboard":
       case "quotations":
       case "pipeline":
-      case "customers":
         return true 
+      case "customers":
+      case "billing":
+        return ["Admin", "Manager", "Rep"].includes(currentRole)
       case "approvals":
       case "reports":
         return ["Admin", "Manager", "Finance"].includes(currentRole)
       case "fulfillment":
-      case "billing":
         return ["Admin", "Finance", "Rep"].includes(currentRole)
       case "deal-health":
         return ["Admin", "Manager", "Rep"].includes(currentRole)

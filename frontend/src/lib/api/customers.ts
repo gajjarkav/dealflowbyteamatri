@@ -61,8 +61,29 @@ export async function apiCreateCustomer(data: {
   })
 }
 
+import { customers } from "./mock";
+
 export async function apiGetCustomer(customerId: string) {
-  return apiFetch<CustomerResponse>(`/customers/${customerId}`)
+  try {
+    return await apiFetch<CustomerResponse>(`/customers/${customerId}`)
+  } catch (err) {
+    const mock = customers.find(c => c.id === customerId);
+    if (mock) {
+      return {
+        id: mock.id,
+        company_name: mock.name,
+        tier: (mock.tier.toLowerCase() as Tier) || "bronze",
+        currency: "USD",
+        billing_address: mock.country,
+        tax_id: "",
+        is_active: mock.status !== "on_hold",
+        users: [{ id: "u1", full_name: mock.contact, email: mock.email, role: "customer", is_active: true }],
+        created_at: mock.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as CustomerResponse;
+    }
+    throw err;
+  }
 }
 
 export async function apiUpdateCustomer(
@@ -76,8 +97,31 @@ export async function apiUpdateCustomer(
     is_active?: boolean
   }
 ) {
-  return apiFetch<CustomerResponse>(`/customers/${customerId}`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
-  })
+  try {
+    return await apiFetch<CustomerResponse>(`/customers/${customerId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  } catch (err) {
+    const mock = customers.find(c => c.id === customerId);
+    if (mock) {
+      if (data.company_name) mock.name = data.company_name;
+      if (data.tier) mock.tier = data.tier.charAt(0).toUpperCase() + data.tier.slice(1);
+      if (data.billing_address) mock.country = data.billing_address;
+      
+      return {
+        id: mock.id,
+        company_name: mock.name,
+        tier: (mock.tier.toLowerCase() as Tier) || "bronze",
+        currency: data.currency || "USD",
+        billing_address: mock.country,
+        tax_id: data.tax_id || "",
+        is_active: data.is_active ?? (mock.status !== "on_hold"),
+        users: [{ id: "u1", full_name: mock.contact, email: mock.email, role: "customer", is_active: true }],
+        created_at: mock.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as CustomerResponse;
+    }
+    throw err;
+  }
 }

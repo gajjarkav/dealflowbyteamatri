@@ -40,33 +40,29 @@
   --shadow-glow: 0 0 15px rgba(59, 130, 246, 0.15); /* Accent glow */
 
   /* === SHADCN COMPATIBILITY === */
-  --background: var(--color-background);
-  --foreground: var(--color-text-primary);
+  /* === SHADCN COMPATIBILITY === */
+  --color-foreground: var(--color-text-primary);
   
-  --card: var(--color-surface);
-  --card-foreground: var(--color-text-primary);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text-primary);
   
-  --popover: var(--color-surface);
-  --popover-foreground: var(--color-text-primary);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-text-primary);
   
-  --primary: var(--color-text-primary);
-  --primary-foreground: #020617; /* Slate 950 */
+  --color-primary: var(--color-text-primary);
+  --color-primary-foreground: #020617; /* Slate 950 */
   
-  --secondary: var(--color-surface-hover);
-  --secondary-foreground: var(--color-text-primary);
+  --color-secondary: var(--color-surface-hover);
+  --color-secondary-foreground: var(--color-text-primary);
   
-  --muted: var(--color-surface-hover);
-  --muted-foreground: var(--color-text-muted);
+  --color-muted: var(--color-surface-hover);
+  --color-muted-foreground: var(--color-text-muted);
   
-  --accent: var(--color-accent);
-  --accent-foreground: #ffffff;
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: #ffffff;
   
-  --destructive: var(--color-danger);
-  --destructive-foreground: #ffffff;
-  
-  --border: var(--color-border);
-  --input: var(--color-border-strong);
-  --ring: var(--color-accent);
+  --color-input: var(--color-border-strong);
+  --color-ring: var(--color-accent);
   /* === BENTO COLORS === */
   --color-moss: #10b981;
   --color-moss-foreground: #a7f3d0;

@@ -35,7 +35,18 @@ export default function NewCustomerPage() {
           <CustomerForm
             submitLabel="Create customer"
             submitting={mutation.isPending}
-            onSubmit={(values) => mutation.mutate(values as unknown as Partial<Customer>)}
+            onSubmit={(values) => {
+              // Map the form values to the backend schema (CustomerCreate)
+              const payload = {
+                company_name: values.name,
+                portal_full_name: values.contact,
+                portal_email: values.email,
+                tier: values.tier.toLowerCase(),
+                currency: "USD",
+                billing_address: `${values.country}`,
+              };
+              mutation.mutate(payload as any);
+            }}
             onCancel={() => router.push("/customers")}
           />
         </BentoCard>
