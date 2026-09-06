@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { apiGetPortalMe, PortalMeResponse } from "@/lib/api/portal"

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -83,6 +83,8 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     { href: "/fulfillment", label: "Fulfillment", id: "fulfillment", icon: <PackageOpen size={16} /> },
     { href: "/billing", label: "Billing", id: "billing", icon: <CreditCard size={16} /> },
     { href: "/customers", label: "Customers", id: "customers", icon: <Activity size={16} /> },
+    { href: "/deal-health", label: "Deal Health", id: "deal-health", icon: <Activity size={16} /> },
+    { href: "/reports", label: "Reports", id: "reports", icon: <FileText size={16} /> },
   ].filter(l => canAccess(l.id))
 
   const adminLinks = [
@@ -92,6 +94,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     { href: "/approval-rules", label: "Approval Matrix", id: "approval-rules" },
     { href: "/warehouses", label: "Hubs & Stock", id: "warehouses" },
     { href: "/users", label: "Access & Users", id: "users" },
+    { href: "/settings", label: "Settings", id: "settings" },
   ].filter(l => canAccess(l.id))
 
   return (
@@ -161,6 +164,31 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
+      {/* Admin Secondary Bar */}
+      {adminLinks.length > 0 && (
+        <div className="hidden lg:block border-b border-border/50 bg-surface/50 backdrop-blur-sm sticky top-16 z-30">
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 flex items-center gap-1 h-10 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] font-mono font-bold text-text-muted uppercase tracking-widest mr-3 shrink-0">Config</span>
+            {adminLinks.map((link) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href + "/")
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all whitespace-nowrap ${
+                    isActive
+                      ? "bg-accent/10 text-accent border border-accent/20"
+                      : "text-text-muted hover:text-text-primary hover:bg-surface-hover"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-30 pt-16 bg-surface border-b border-border shadow-2xl flex flex-col">
@@ -206,7 +234,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
       {/* Main Content Area */}
       <motion.main 
-        key={pathname} // Re-trigger animation on route change
+        key={pathname}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
@@ -218,3 +246,4 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
     </div>
   )
 }
+

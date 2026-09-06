@@ -7,24 +7,25 @@
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
   --font-playfair: var(--font-playfair), ui-serif, serif;
 
-  /* === LIGHT MODE COLORS (Warm Theme) === */
-  --color-background: #FDFBF7;
-  --color-surface: #FFFFFF;
-  --color-surface-hover: #F4F4F5;
-  --color-border: #E4E4E7;
-  --color-border-strong: #D4D4D8;
-  --color-text-primary: #09090B;
-  --color-text-secondary: #52525B;
-  --color-text-muted: #A1A1AA;
-  --color-accent: #C2410C;
-  --color-accent-hover: #9A3412;
-  --color-accent-soft: #FFEDD5;
-  --color-success: #15803D;
-  --color-success-soft: #F0FDF4;
-  --color-warning: #B45309;
-  --color-warning-soft: #FFFBEB;
-  --color-danger: #B91C1C;
-  --color-danger-soft: #FEF2F2;
+  /* === DARK MODE COLORS (Premium SaaS) === */
+  --color-background: #09090b; /* Zinc 950 */
+  --color-surface: #18181b; /* Zinc 900 */
+  --color-surface-2: #27272a; /* Zinc 800 */
+  --color-surface-hover: #27272a; /* Zinc 800 */
+  --color-border: #27272a; /* Zinc 800 */
+  --color-border-strong: #3f3f46; /* Zinc 700 */
+  --color-text-primary: #f8fafc; /* Slate 50 */
+  --color-text-secondary: #94a3b8; /* Slate 400 */
+  --color-text-muted: #64748b; /* Slate 500 */
+  --color-accent: #3b82f6; /* Blue 500 */
+  --color-accent-hover: #2563eb; /* Blue 600 */
+  --color-accent-soft: rgba(59, 130, 246, 0.1);
+  --color-success: #10b981; /* Emerald 500 */
+  --color-success-soft: rgba(16, 185, 129, 0.1);
+  --color-warning: #f59e0b; /* Amber 500 */
+  --color-warning-soft: rgba(245, 158, 11, 0.1);
+  --color-danger: #ef4444; /* Red 500 */
+  --color-danger-soft: rgba(239, 68, 68, 0.1);
 
   /* === RADIUS === */
   --radius: 8px;
@@ -32,11 +33,51 @@
   --radius-lg: 16px;
   --radius-full: 9999px;
 
-  /* === SHADOWS (Clean & Professional) === */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
-  --shadow-glow: 0 0 15px rgba(194, 65, 12, 0.08); /* Accent glow */
+  /* === SHADOWS (Dark mode depth) === */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 15px rgba(59, 130, 246, 0.15); /* Accent glow */
+
+  /* === SHADCN COMPATIBILITY === */
+  --background: var(--color-background);
+  --foreground: var(--color-text-primary);
+  
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text-primary);
+  
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text-primary);
+  
+  --primary: var(--color-text-primary);
+  --primary-foreground: #020617; /* Slate 950 */
+  
+  --secondary: var(--color-surface-hover);
+  --secondary-foreground: var(--color-text-primary);
+  
+  --muted: var(--color-surface-hover);
+  --muted-foreground: var(--color-text-muted);
+  
+  --accent: var(--color-accent);
+  --accent-foreground: #ffffff;
+  
+  --destructive: var(--color-danger);
+  --destructive-foreground: #ffffff;
+  
+  --border: var(--color-border);
+  --input: var(--color-border-strong);
+  --ring: var(--color-accent);
+  /* === BENTO COLORS === */
+  --color-moss: #10b981;
+  --color-moss-foreground: #a7f3d0;
+  --color-honey: #f59e0b;
+  --color-honey-foreground: #fde68a;
+  --color-clay: #ef4444;
+  --color-clay-foreground: #fecaca;
+  --color-ember: #f97316;
+  --color-ember-foreground: #fed7aa;
+  --color-sand: #d6d3d1;
+  --color-sand-foreground: #f5f5f4;
 }
 
 @layer base {
@@ -46,10 +87,10 @@
   body {
     background-color: var(--color-background);
     background-image: 
-      radial-gradient(at 0% 0%, rgba(194, 65, 12, 0.03) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(194, 65, 12, 0.03) 0px, transparent 50%),
-      linear-gradient(to right, rgba(0, 0, 0, 0.02) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+      radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
+      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
     background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
     background-attachment: fixed;
     color: var(--color-text-primary);
@@ -71,11 +112,17 @@
 }
 
 @layer utilities {
+  .bento-tint-moss { background: linear-gradient(to bottom right, rgba(16, 185, 129, 0.05), transparent); border-color: rgba(16, 185, 129, 0.2); }
+  .bento-tint-honey { background: linear-gradient(to bottom right, rgba(245, 158, 11, 0.05), transparent); border-color: rgba(245, 158, 11, 0.2); }
+  .bento-tint-clay { background: linear-gradient(to bottom right, rgba(239, 68, 68, 0.05), transparent); border-color: rgba(239, 68, 68, 0.2); }
+  .bento-tint-ember { background: linear-gradient(to bottom right, rgba(249, 115, 22, 0.05), transparent); border-color: rgba(249, 115, 22, 0.2); }
+  .bento-tint-sand { background: linear-gradient(to bottom right, rgba(214, 211, 209, 0.05), transparent); border-color: rgba(214, 211, 209, 0.2); }
+
   .glass-panel {
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(24, 24, 27, 0.6);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     box-shadow: var(--shadow-md);
   }
   .premium-card {
@@ -83,18 +130,18 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
-    transition: all 0.2s ease-out;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease-out;
   }
   .premium-card:hover {
     box-shadow: var(--shadow-md);
     border-color: var(--color-border-strong);
+    transform: translateY(-2px);
   }
   .interactive-row {
-    transition: all 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out;
   }
   .interactive-row:hover {
     background-color: var(--color-surface-hover);
-    transform: translateX(4px);
   }
   /* Hide scrollbar for clean horizontal scrolling */
   .no-scrollbar::-webkit-scrollbar {

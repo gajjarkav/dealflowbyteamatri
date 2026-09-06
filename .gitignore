@@ -81,3 +81,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+
+# Private Docs
+.private-docs/

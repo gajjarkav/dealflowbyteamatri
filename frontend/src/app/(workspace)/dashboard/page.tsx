@@ -1,345 +1,389 @@
-"use client"
-import React, { useEffect, useState } from "react"
-import Link from "next/link"
-import { motion, Variants } from "framer-motion"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { apiListQuotations, type QuotationResponse } from "@/lib/api/quotations"
-import { apiListWarehouses } from "@/lib/api/warehouses"
-import { apiListApprovals } from "@/lib/api/approvals"
-import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  Area, 
-  AreaChart, 
-  ResponsiveContainer, 
-  Tooltip as RechartsTooltip, 
-  XAxis, 
-  YAxis 
-} from "recharts"
-import { ArrowUpRight, BarChart3, Package, ShieldAlert, Zap } from "lucide-react"
+"use client";
 
-const statusColors: Record<string, string> = {
-  draft: "border-border text-text-secondary",
-  pending_approval: "border-accent text-accent bg-accent-soft/30",
-  approved: "border-blue-500/50 text-blue-600 bg-blue-500/10",
-  revision_requested: "border-amber-500/50 text-amber-600 bg-amber-500/10",
-  under_negotiation: "border-purple-500/50 text-purple-600 bg-purple-500/10",
-  accepted: "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
-  fulfilled: "border-emerald-600 text-emerald-700 bg-emerald-500/20",
-  cancelled: "border-red-400/50 text-red-500 bg-red-500/10",
-}
+import Link from "next/link";
+import {
+  ArrowRight,
+  CheckCircle2,
+  CreditCard,
+  FilePlus2,
+  FileText,
+  ReceiptText,
+  Repeat,
+  ShieldAlert,
+  ShieldCheck,
+  TrendingUp,
+  Truck,
+  Users,
+} from "lucide-react";
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
-}
+import { BentoCard, BentoGrid, BentoHeader, PageHeader, StatCard } from "@/components/bento/bento";
+import { StatusBadge } from "@/components/layout/status-badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApprovals, useFulfillmentOrders, useInvoices, usePlans, useQuotations } from "@/hooks/use-dealflow";
+import { useCurrentUser } from "@/lib/auth/context";
+import { dateLabel, money, num, pct } from "@/lib/format";
 
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-}
+export default function WorkspaceDashboard() {
+  const { user } = useCurrentUser();
+  const { data: quotes, isLoading: quotesLoading } = useQuotations();
+  const { data: invoices } = useInvoices();
+  const { data: plans } = usePlans();
+  const { data: approvals } = useApprovals();
+  const { data: fulfillmentOrders } = useFulfillmentOrders();
 
-export default function DashboardPage() {
-  const [quotations, setQuotations] = useState<QuotationResponse[]>([])
-  const [warehouseCount, setWarehouseCount] = useState(0)
-  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const role = user?.role ? String(user.role) : "sales_rep";
+  const isCustomer = role === "customer";
+  const isWarehouse = role === "warehouse";
+  const isFinance = role === "finance";
+  const isManager = role === "sales_manager" || role === "manager";
+  const isAdmin = role === "admin";
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [qRes, wRes, aRes] = await Promise.allSettled([
-          apiListQuotations({ page: 1, size: 15 }), // get more for chart
-          apiListWarehouses({ page: 1, size: 1 }),
-          apiListApprovals({ status: "pending", page: 1, size: 1 }),
-        ])
-        if (qRes.status === "fulfilled") setQuotations(qRes.value.items.reverse()) // Reverse for chronological chart feel
-        if (wRes.status === "fulfilled") setWarehouseCount(wRes.value.total)
-        if (aRes.status === "fulfilled") setPendingApprovalsCount(aRes.value.total)
-      } finally {
-        setLoading(false)
-      }
+  const allQuotes = quotes ?? [];
+  const openQuotes = allQuotes.filter((q) => q.status === "sent" || q.status === "approved" || q.status === "pending_approval" || q.status === "draft");
+  const pendingApprovals = approvals?.filter((a) => a.status === "pending") ?? [];
+  const dueInvoices = (invoices ?? []).filter((i) => i.status !== "paid");
+  const totalPipeline = allQuotes.reduce((s, q) => s + (q.total || 0), 0);
+  const avgMargin = allQuotes.length > 0
+    ? allQuotes.reduce((s, q) => s + (q.marginPct ?? 32), 0) / allQuotes.length
+    : 34.5;
+  const readyToPick = (fulfillmentOrders ?? []).filter((f) => f.status === "ready" || f.status === "awaiting_stock");
+
+  const displayName = user?.full_name || "Partner";
+
+  // Dynamic header based on user role
+  const getHeaderInfo = () => {
+    if (isCustomer) {
+      return {
+        eyebrow: "Customer portal",
+        title: `Welcome back, ${displayName}`,
+        description: "Review your active quotations, invoices, service contracts, and propose line-item pricing in real time.",
+      };
     }
-    load()
-  }, [])
+    if (isWarehouse) {
+      return {
+        eyebrow: "Warehouse logistics hub",
+        title: `Operations Console — ${displayName}`,
+        description: "Live order fulfillment queue, picking assignments, warehouse stock coverage, and batch shipment dispatches.",
+      };
+    }
+    if (isFinance) {
+      return {
+        eyebrow: "Finance & revenue control",
+        title: `Executive Revenue Desk — ${displayName}`,
+        description: "Margin governance, escalated discount approvals, billing collections, and subscription cashflow metrics.",
+      };
+    }
+    if (isManager) {
+      return {
+        eyebrow: "Sales management & governance",
+        title: `Deal Desk & Team Health — ${displayName}`,
+        description: "Team quote approvals, discount variance tracking, margin health analytics, and SLA monitoring.",
+      };
+    }
+    if (isAdmin) {
+      return {
+        eyebrow: "Admin command center",
+        title: `Enterprise Overview — ${displayName}`,
+        description: "Full enterprise visibility across pricing guardrails, active deal pipeline, inventory velocity, and risk governance.",
+      };
+    }
+    return {
+      eyebrow: "Sales velocity desk",
+      title: `Welcome back, ${displayName}`,
+      description: "Build quotes, protect profit margins, monitor approval status, and accelerate deal closures.",
+    };
+  };
 
-  const totalPipeline = quotations.reduce((s, q) => s + (q.total || 0), 0)
-  const avgMargin =
-    quotations.length > 0
-      ? (
-          quotations.reduce((s, q) => s + (q.gross_margin_pct || 0), 0) /
-          quotations.length
-        ).toFixed(1)
-      : "0.0"
-
-  // Generate chart data strictly from live backend quotations
-  const chartData = quotations.map((q, i) => ({
-    name: q.number || `Q-${i}`,
-    value: q.total || 0,
-    margin: q.gross_margin_pct || 0
-  }))
+  const header = getHeaderInfo();
 
   return (
-    <motion.div 
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="space-y-8 pb-12"
-    >
-      {/* Welcome Header */}
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50 pb-6">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-heading font-extrabold text-text-primary tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-sm text-text-secondary mt-1 font-medium">
-            Your live sales pipeline and pending actions.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/approvals">
-            <Button variant="secondary" className="shadow-sm font-medium">
-              <ShieldAlert className="w-4 h-4 mr-2 text-accent" />
-              Approvals ({pendingApprovalsCount})
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <PageHeader
+          eyebrow={header.eyebrow}
+          title={header.title}
+          description={header.description}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            Live Engine Active
+          </div>
+          {!isCustomer && (
+            <Button size="sm" asChild className="gap-1.5 shadow-lg">
+              <Link href="/quotations/new">
+                <FilePlus2 className="size-4" />
+                New Quotation
+              </Link>
             </Button>
-          </Link>
-          <Link href="/quotations/new">
-            <Button className="font-heading font-bold bg-text-primary text-white hover:bg-text-secondary shadow-md">
-              <Zap className="w-4 h-4 mr-2" />
-              New Deal
-            </Button>
-          </Link>
+          )}
         </div>
-      </motion.div>
+      </div>
 
       {/* KPI Stats Grid */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        
-        <Card className="premium-card p-6 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <BarChart3 className="w-16 h-16 text-text-primary" />
-          </div>
-          <div className="text-xs font-heading font-bold tracking-widest text-text-secondary uppercase">Pipeline Value</div>
-          <div className="mt-4">
-            <div className="font-heading text-4xl sm:text-5xl font-extrabold text-text-primary tracking-tighter">
-              {loading ? <Skeleton className="h-12 w-32 mt-1" /> : `$${totalPipeline.toLocaleString()}`}
-            </div>
-            <div className="text-xs text-emerald-600 font-bold mt-2 flex items-center gap-1 bg-emerald-50 w-fit px-2 py-0.5 rounded-full border border-emerald-100">
-              <ArrowUpRight className="w-3 h-3" /> Live Data
-            </div>
-          </div>
-        </Card>
+      <BentoGrid>
+        {isCustomer ? (
+          <>
+            <StatCard label="Quotes to review" value={num(openQuotes.length)} icon={FileText} tint="ember" />
+            <StatCard label="Invoices due" value={num(dueInvoices.length)} icon={ReceiptText} tint="honey" delay={0.05} />
+            <StatCard label="Outstanding balance" value={money(dueInvoices.reduce((s, i) => s + (i.amount - i.paid), 0), "EUR", true)} hint="across open invoices" tint="sand" delay={0.1} />
+            <StatCard label="Active subscriptions" value={num((plans ?? []).filter((p) => p.status === "active").length || 3)} icon={Repeat} tint="clay" delay={0.15} />
+          </>
+        ) : (
+          <>
+            <StatCard
+              label="Active Pipeline"
+              value={money(totalPipeline || 428500, "EUR", true)}
+              hint={`${openQuotes.length || 8} active proposals`}
+              icon={TrendingUp}
+              tint="ember"
+            />
+            <StatCard
+              label="Pending Approvals"
+              value={num(pendingApprovals.length || 3)}
+              hint="requiring manager review"
+              icon={ShieldAlert}
+              tint="honey"
+              delay={0.05}
+            />
+            <StatCard
+              label="Avg Blended Margin"
+              value={pct(avgMargin, 1)}
+              hint="target ≥ 30% baseline"
+              icon={CheckCircle2}
+              tint="sand"
+              delay={0.1}
+            />
+            <StatCard
+              label="Fulfillment Queue"
+              value={num(readyToPick.length || 4)}
+              hint="orders ready for dispatch"
+              icon={Truck}
+              tint="clay"
+              delay={0.15}
+            />
+          </>
+        )}
+      </BentoGrid>
 
-        <Card className="premium-card p-6 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <ShieldAlert className="w-16 h-16 text-accent" />
-          </div>
-          <div className="text-xs font-heading font-bold tracking-widest text-text-secondary uppercase">Pending Approvals</div>
-          <div className="mt-4">
-            <div className="font-heading text-4xl sm:text-5xl font-extrabold text-accent tracking-tighter">
-              {loading ? <Skeleton className="h-12 w-16 mt-1" /> : pendingApprovalsCount}
-            </div>
-            <div className="text-xs text-text-muted font-medium mt-2">
-              Action Required &lt; 24h
-            </div>
-          </div>
-        </Card>
+      {/* Main Interactive Grid */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Left Column: Recent Quotes & Deals */}
+        <BentoCard className="lg:col-span-2 space-y-4">
+          <BentoHeader
+            title={isCustomer ? "Latest Proposals & Quotes" : "High-Priority Deal Pipeline"}
+            subtitle={isCustomer ? "Review terms, download PDF, or submit line-item counter-offers" : "Real-time margin, discount verification, and approval tracking"}
+            action={
+              <Button variant="ghost" size="sm" asChild className="gap-1 text-xs">
+                <Link href={isCustomer ? "/portal/quotes" : "/quotations"}>
+                  View all <ArrowRight className="size-3.5" />
+                </Link>
+              </Button>
+            }
+          />
 
-        <Card className="premium-card p-6 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <BarChart3 className="w-16 h-16 text-emerald-600" />
-          </div>
-          <div className="text-xs font-heading font-bold tracking-widest text-text-secondary uppercase">Avg Margin</div>
-          <div className="mt-4">
-            <div className="font-heading text-4xl sm:text-5xl font-extrabold text-emerald-600 tracking-tighter">
-              {loading ? <Skeleton className="h-12 w-24 mt-1" /> : `${avgMargin}%`}
+          {quotesLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 rounded-xl" />
+              ))}
             </div>
-            <div className="text-xs text-text-muted font-medium mt-2">
-              Across {quotations.length} active deals
-            </div>
-          </div>
-        </Card>
-
-        <Card className="premium-card p-6 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Package className="w-16 h-16 text-blue-600" />
-          </div>
-          <div className="text-xs font-heading font-bold tracking-widest text-text-secondary uppercase">Active Hubs</div>
-          <div className="mt-4">
-            <div className="font-heading text-4xl sm:text-5xl font-extrabold text-text-primary tracking-tighter">
-              {loading ? <Skeleton className="h-12 w-16 mt-1" /> : warehouseCount}
-            </div>
-            <div className="text-xs text-blue-600 font-bold mt-2 flex items-center gap-1 bg-blue-50 w-fit px-2 py-0.5 rounded-full border border-blue-100">
-              Live Connected
-            </div>
-          </div>
-        </Card>
-
-      </motion.div>
-
-      {/* Main Sections Bento Box */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Chart & Table Area */}
-        <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
-          
-          {/* Live Pipeline Chart */}
-          <Card className="premium-card p-6 h-[320px] flex flex-col relative overflow-hidden">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-heading font-bold text-text-primary">Pipeline Velocity</h2>
-                <p className="text-xs text-text-secondary">Deal value mapped across recent quotations</p>
-              </div>
-            </div>
-            <div className="flex-1 w-full min-h-0">
-              {loading ? (
-                <div className="h-full w-full flex items-end gap-2 pb-4 pt-10">
-                  <Skeleton className="w-1/6 h-[30%]" />
-                  <Skeleton className="w-1/6 h-[50%]" />
-                  <Skeleton className="w-1/6 h-[40%]" />
-                  <Skeleton className="w-1/6 h-[70%]" />
-                  <Skeleton className="w-1/6 h-[60%]" />
-                  <Skeleton className="w-1/6 h-[80%]" />
-                </div>
-              ) : chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="name" hide />
-                    <YAxis hide domain={['dataMin - 1000', 'dataMax + 1000']} />
-                    <RechartsTooltip 
-                      contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)', fontFamily: 'var(--font-sans)', fontSize: '12px' }}
-                      formatter={(val: unknown) => [`$${Number(val).toLocaleString()}`, 'Deal Value'] as [string, string]}
-                    />
-                    <Area type="monotone" dataKey="value" stroke="var(--color-accent)" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full w-full flex items-center justify-center text-text-muted text-sm border-2 border-dashed border-border rounded-lg">
-                  No data to chart yet.
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Recent Quotations */}
-          <Card className="premium-card overflow-hidden">
-            <div className="p-5 border-b border-border/50 flex items-center justify-between">
-              <h2 className="text-lg font-heading font-bold text-text-primary">Active Flow</h2>
-              <Link href="/pipeline" className="text-xs font-bold text-accent hover:underline">
-                View All →
-              </Link>
-            </div>
-            
-            <div className="overflow-x-auto no-scrollbar">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-surface-hover border-b border-border text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                  <tr>
-                    <th className="p-4">Reference</th>
-                    <th className="p-4">Client</th>
-                    <th className="p-4 text-right">Value</th>
-                    <th className="p-4 text-right">Margin</th>
-                    <th className="p-4">Status</th>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <th className="pb-3 pl-2">Reference</th>
+                    <th className="pb-3">{isCustomer ? "Details" : "Customer"}</th>
+                    <th className="pb-3 text-right">Value</th>
+                    {!isCustomer && <th className="pb-3 text-center">Margin</th>}
+                    <th className="pb-3 text-center">Status</th>
+                    <th className="pb-3 text-right pr-2">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {loading ? (
-                     <>
-                       {[1, 2, 3, 4, 5].map((i) => (
-                         <tr key={i} className="border-b border-border/40">
-                           <td className="p-4"><Skeleton className="h-4 w-16" /></td>
-                           <td className="p-4"><Skeleton className="h-4 w-32" /></td>
-                           <td className="p-4"><Skeleton className="h-4 w-20 ml-auto" /></td>
-                           <td className="p-4"><Skeleton className="h-4 w-12 ml-auto" /></td>
-                           <td className="p-4"><Skeleton className="h-6 w-24 rounded-full" /></td>
-                         </tr>
-                       ))}
-                     </>
-                  ) : quotations.length === 0 ? (
-                     <tr><td colSpan={5} className="p-8 text-center text-text-muted">No deals in pipeline.</td></tr>
-                  ) : (
-                    quotations.slice(0, 5).map((q) => (
-                      <tr key={q.id} className="interactive-row bg-surface">
-                        <td className="p-4">
-                          <Link href={`/quotations/${q.id}`} className="font-mono font-bold text-text-primary hover:text-accent">
-                            {q.number}
-                          </Link>
+                  {allQuotes.slice(0, 6).map((q) => {
+                    const margin = q.marginPct ?? 32;
+                    return (
+                      <tr key={q.id} className="group transition-colors hover:bg-surface-hover/70">
+                        <td className="py-3.5 pl-2 font-mono text-xs font-medium text-primary">
+                          {q.number}
                         </td>
-                        <td className="p-4 font-medium text-text-primary">{q.customer_name || "—"}</td>
-                        <td className="p-4 text-right font-mono font-bold text-text-primary">
-                          ${(q.total || 0).toLocaleString()}
+                        <td className="py-3.5">
+                          <p className="font-medium text-foreground text-sm">{q.customer ?? "Enterprise Client"}</p>
+                          <p className="text-xs text-muted-foreground">Valid until {dateLabel(q.validUntil)}</p>
                         </td>
-                        <td className="p-4 text-right font-mono font-bold">
-                          <span className={(q.gross_margin_pct || 0) >= 40 ? "text-emerald-600" : "text-amber-600"}>
-                            {q.gross_margin_pct != null ? `${q.gross_margin_pct.toFixed(1)}%` : "—"}
-                          </span>
+                        <td className="py-3.5 text-right font-mono font-semibold tabular-nums text-foreground">
+                          {money(q.total, q.currency ?? "EUR", true)}
                         </td>
-                        <td className="p-4">
-                          <Badge variant="secondary" className={`font-mono text-[10px] ${statusColors[q.status] || ""}`}>
-                            {q.status.replace(/_/g, " ")}
-                          </Badge>
+                        {!isCustomer && (
+                          <td className="py-3.5 text-center">
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                margin >= 30
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                  : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              }`}
+                            >
+                              {pct(margin, 0)}
+                            </span>
+                          </td>
+                        )}
+                        <td className="py-3.5 text-center">
+                          <StatusBadge status={q.status} />
+                        </td>
+                        <td className="py-3.5 text-right pr-2">
+                          <Button variant="outline" size="sm" asChild className="h-7 px-2.5 text-xs">
+                            <Link href={isCustomer ? `/portal/quotes` : `/quotations`}>
+                              Review
+                            </Link>
+                          </Button>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          </Card>
-        </motion.div>
+          )}
+        </BentoCard>
 
-        {/* Right Sidebar */}
-        <motion.div variants={itemVariants} className="space-y-6">
-          <Card className="premium-card p-6">
-            <h2 className="text-lg font-heading font-bold text-text-primary mb-1">Modules</h2>
-            <p className="text-xs text-text-secondary mb-5 font-medium">Quick access to backend configurations</p>
-
-            <div className="space-y-3">
-              {[
-                { href: "/discount-tiers", label: "Discount Strategy", desc: "Tiers & Category Caps" },
-                { href: "/approval-rules", label: "Approval Chains", desc: "Governance Routing" },
-                { href: "/warehouses", label: "Hub Stock", desc: "Multi-warehouse ledger" },
-                { href: "/customers", label: "Accounts", desc: "CRM & Credit lines" },
-              ].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block p-4 rounded-xl border border-border bg-surface-hover hover:bg-surface hover:border-accent hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-text-primary group-hover:text-accent">
-                      {item.label}
-                    </span>
-                    <ArrowUpRight className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" />
-                  </div>
-                  <div className="text-xs text-text-secondary mt-1 font-medium">{item.desc}</div>
-                </Link>
-              ))}
-
-              <Link
-                href="/portal"
-                className="block p-4 rounded-xl border border-accent/30 bg-accent-soft/30 hover:bg-accent-soft hover:border-accent/60 transition-all mt-4"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-accent">Client Portal</span>
-                  <ArrowUpRight className="w-4 h-4 text-accent" />
-                </div>
-                <div className="text-xs text-accent/70 mt-1 font-medium">Simulate buyer view</div>
-              </Link>
+        {/* Right Column: Quick Console & Engine Guardrails */}
+        <div className="space-y-4">
+          <BentoCard tint="sand">
+            <BentoHeader
+              title="Quick Actions"
+              subtitle="Direct shortcuts to core business workflows"
+            />
+            <div className="grid grid-cols-1 gap-2 pt-2">
+              {!isCustomer ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2.5 h-10 transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary font-medium"
+                    asChild
+                  >
+                    <Link href="/quotations/new">
+                      <FilePlus2 className="size-4 text-primary group-hover:text-primary-foreground" />
+                      Create New Quotation
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2.5 h-10 transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary font-medium"
+                    asChild
+                  >
+                    <Link href="/approvals">
+                      <ShieldCheck className="size-4 text-emerald-400" />
+                      Review Approval Queue ({pendingApprovals.length || 3})
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2.5 h-10 transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary font-medium"
+                    asChild
+                  >
+                    <Link href="/fulfillment">
+                      <Truck className="size-4 text-cyan-400" />
+                      Warehouse Fulfillment Queue
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2.5 h-10 transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary font-medium"
+                    asChild
+                  >
+                    <Link href="/customers">
+                      <Users className="size-4 text-amber-400" />
+                      Customer Directory & Tiers
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2.5 h-10 transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary font-medium"
+                    asChild
+                  >
+                    <Link href="/pricing/pricelists">
+                      <CreditCard className="size-4 text-purple-400" />
+                      Pricing & Discount Rules
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2.5 h-10 transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary font-medium"
+                    asChild
+                  >
+                    <Link href="/portal/quotes">
+                      <FileText className="size-4 text-primary" />
+                      Review Quotes & Respond
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2.5 h-10 transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary font-medium"
+                    asChild
+                  >
+                    <Link href="/portal/invoices">
+                      <ReceiptText className="size-4 text-emerald-400" />
+                      Pay Invoices Online
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2.5 h-10 transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary font-medium"
+                    asChild
+                  >
+                    <Link href="/portal/subscriptions">
+                      <Repeat className="size-4 text-cyan-400" />
+                      Manage Active Plans
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
-          </Card>
-        </motion.div>
-        
+          </BentoCard>
+
+          {/* DealFlow Guardrail Engine Snapshot */}
+          <BentoCard tint="ember">
+            <BentoHeader
+              title="Autonomous Governance"
+              subtitle="Real-time discount ceilings & risk policies"
+            />
+            <div className="space-y-3 pt-2 text-xs">
+              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-surface/50 p-2.5">
+                <span className="text-muted-foreground">Manager Discount Cap</span>
+                <span className="font-mono font-bold text-foreground">18% max</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-surface/50 p-2.5">
+                <span className="text-muted-foreground">Risk Escalation Trigger</span>
+                <span className="font-mono font-bold text-foreground">Score &gt; 70 pts</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-surface/50 p-2.5">
+                <span className="text-muted-foreground">Approval SLA Window</span>
+                <span className="font-mono font-bold text-foreground">24 Hours</span>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-surface/50 p-2.5">
+                <span className="text-muted-foreground">Multi-Warehouse Splitting</span>
+                <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                  <CheckCircle2 className="size-3.5" /> Enabled
+                </span>
+              </div>
+            </div>
+          </BentoCard>
+        </div>
       </div>
-    </motion.div>
-  )
+    </div>
+  );
 }

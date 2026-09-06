@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
@@ -32,12 +32,12 @@ import { apiListProducts, type ProductResponse } from "@/lib/api/catalog"
 const STATUS_COLORS: Record<string, string> = {
   draft: "border-border text-text-secondary bg-surface",
   pending_approval: "border-accent/40 text-accent bg-accent-soft/30",
-  approved: "border-blue-500/50 text-blue-600 bg-blue-500/10",
-  revision_requested: "border-amber-500/50 text-amber-600 bg-amber-500/10",
-  under_negotiation: "border-purple-500/50 text-purple-600 bg-purple-500/10",
-  accepted: "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
+  approved: "border-blue-500/50 text-blue-400 bg-blue-500/10",
+  revision_requested: "border-amber-500/50 text-amber-400 bg-amber-500/10",
+  under_negotiation: "border-purple-500/50 text-purple-400 bg-purple-500/10",
+  accepted: "border-emerald-500/50 text-emerald-400 bg-emerald-500/10",
   cancelled: "border-red-400/50 text-red-500 bg-red-500/10",
-  fulfilled: "border-emerald-600 text-emerald-700 bg-emerald-500/20",
+  fulfilled: "border-emerald-600 text-emerald-400 bg-emerald-500/20",
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -52,10 +52,10 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const RISK_COLORS: Record<string, string> = {
-  low: "text-emerald-600 bg-emerald-50",
-  medium: "text-amber-600 bg-amber-50",
-  high: "text-orange-600 bg-orange-50",
-  critical: "text-red-600 bg-red-50",
+  low: "text-emerald-400 bg-emerald-500/10",
+  medium: "text-amber-400 bg-amber-500/10",
+  high: "text-orange-400 bg-orange-500/10",
+  critical: "text-red-400 bg-red-500/10",
 }
 
 const containerVariants = {
@@ -266,7 +266,7 @@ export default function QuotationDetailPage() {
                   {STATUS_LABELS[quotation.status]}
                 </Badge>
                 {risk && (
-                  <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-1 border-orange-200 text-orange-600 bg-orange-50">
+                  <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-widest px-2.5 py-1 border-orange-200 text-orange-400 bg-orange-500/10">
                     <ShieldAlert className="w-3 h-3 mr-1 inline" /> {risk.flags.length > 0 ? "Flags Found" : "Analyzed"}
                   </Badge>
                 )}
@@ -287,7 +287,7 @@ export default function QuotationDetailPage() {
               </div>
               <div className="flex items-center gap-2 mt-2">
                 <div className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
-                  (quotation.gross_margin_pct || 0) >= 40 ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-amber-50 text-amber-600 border border-amber-100"
+                  (quotation.gross_margin_pct || 0) >= 40 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-100" : "bg-amber-500/10 text-amber-400 border border-amber-100"
                 }`}>
                   Margin: {quotation.gross_margin_pct != null ? `${quotation.gross_margin_pct.toFixed(1)}%` : "—"}
                 </div>
@@ -381,7 +381,7 @@ export default function QuotationDetailPage() {
                           ${(line.line_total || 0).toLocaleString()}
                         </td>
                         <td className="px-5 py-4 text-right font-mono">
-                          <span className={(line.margin_pct || 0) >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
+                          <span className={(line.margin_pct || 0) >= 40 ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
                             {line.margin_pct != null ? `${line.margin_pct.toFixed(1)}%` : "—"}
                           </span>
                         </td>
@@ -428,7 +428,7 @@ export default function QuotationDetailPage() {
                   {risk.flags.length === 0 ? (
                     <div className="text-sm text-text-muted font-medium">No flags detected.</div>
                   ) : risk.flags.map((r: string, i: number) => (
-                    <div key={i} className="flex items-start gap-2 bg-amber-50/50 border border-amber-100 p-3 rounded-lg">
+                    <div key={i} className="flex items-start gap-2 bg-amber-500/10/50 border border-amber-100 p-3 rounded-lg">
                       <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                       <span className="text-sm text-amber-900 font-medium">{r}</span>
                     </div>

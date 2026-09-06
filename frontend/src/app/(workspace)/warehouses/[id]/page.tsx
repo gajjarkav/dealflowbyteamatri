@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -78,7 +78,7 @@ export default function WarehouseDetailPage() {
       key: "available", 
       header: "Available", 
       render: (p) => (
-        <span className={`font-mono text-sm font-bold ${p.available < 5 ? "text-danger" : "text-emerald-600"}`}>
+        <span className={`font-mono text-sm font-bold ${p.available < 5 ? "text-danger" : "text-emerald-400"}`}>
           {p.available}
         </span>
       ) 

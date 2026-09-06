@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
@@ -111,7 +111,7 @@ export default function SettingsPage() {
         <Card className="premium-card overflow-hidden">
           <div className="p-6 border-b border-border bg-surface flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-              <UserIcon className="w-5 h-5 text-blue-600" />
+              <UserIcon className="w-5 h-5 text-blue-400" />
             </div>
             <div>
               <h2 className="text-lg font-heading font-bold text-text-primary">My Profile</h2>
@@ -133,7 +133,7 @@ export default function SettingsPage() {
                 <div className="bg-background p-4 rounded-xl border border-border">
                   <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest mb-1">Account Role</div>
                   <div>
-                    <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-200">
+                    <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                       {user.role.replace(/_/g, " ")}
                     </Badge>
                   </div>
@@ -151,7 +151,7 @@ export default function SettingsPage() {
         <Card className="premium-card overflow-hidden">
           <div className="p-6 border-b border-border bg-surface flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-              <KeyRound className="w-5 h-5 text-amber-600" />
+              <KeyRound className="w-5 h-5 text-amber-400" />
             </div>
             <div>
               <h2 className="text-lg font-heading font-bold text-text-primary">Change Password</h2>
@@ -222,7 +222,7 @@ export default function SettingsPage() {
             <div className="p-6 border-b border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                  <Sliders className="w-5 h-5 text-purple-600" />
+                  <Sliders className="w-5 h-5 text-purple-400" />
                 </div>
                 <div>
                   <h2 className="text-lg font-heading font-bold text-text-primary">System Configuration</h2>
@@ -244,7 +244,7 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3 p-4 mb-6 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+                  <div className="flex items-start gap-3 p-4 mb-6 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-800">
                     <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                     <div className="text-sm font-medium">
                       <strong>Admin Warning:</strong> Changes to these global configuration variables may immediately affect all users and operational limits across the platform.

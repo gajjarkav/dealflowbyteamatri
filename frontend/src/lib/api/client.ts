@@ -1,156 +1,226 @@
-/**
- * Base API client for DealFlow360
- * Connects to FastAPI backend on Render: https://dealflowbyteamatri.onrender.com/api/v1
- */
+import { mockResolve } from "./mock";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://dealflowbyteamatri.onrender.com/api/v1"
+export const API_BASE_URL =
+  (process.env.NEXT_PUBLIC_API_URL as string | undefined)?.replace(/\/$/, "") ??
+  "http://localhost:8000/api/v1";
 
-// ── Token Storage ──────────────────────────────────────────────────────────────
+const TOKEN_KEY = "dealflow.access_token";
+const REFRESH_KEY = "dealflow.refresh_token";
+const USER_KEY = "dealflow.user";
 
 export function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("access_token")
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TOKEN_KEY);
 }
 
 export function getRefreshToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("refresh_token")
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(REFRESH_KEY);
 }
 
-export function setTokens(access: string, refresh: string) {
-  localStorage.setItem("access_token", access)
-  localStorage.setItem("refresh_token", refresh)
+export function setTokens(access: string, refresh?: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(TOKEN_KEY, access);
+  if (refresh) window.localStorage.setItem(REFRESH_KEY, refresh);
 }
 
 export function clearTokens() {
-  localStorage.removeItem("access_token")
-  localStorage.removeItem("refresh_token")
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(REFRESH_KEY);
+  window.localStorage.removeItem(USER_KEY);
 }
 
-// ── Refresh ────────────────────────────────────────────────────────────────────
-
-let isRefreshing = false
-let pendingQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = []
-
-async function performRefresh(): Promise<string> {
-  const refresh = getRefreshToken()
-  if (!refresh) throw new Error("No refresh token")
-
-  const res = await fetch(`${BASE_URL}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refresh }),
-  })
-
-  if (!res.ok) {
-    clearTokens()
-    throw new Error("Session expired. Please log in again.")
+export function buildQuery(params?: Record<string, unknown>): string {
+  if (!params) return "";
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") {
+      q.set(k, String(v));
+    }
   }
-
-  const data = await res.json()
-  setTokens(data.access_token, data.refresh_token)
-  return data.access_token
+  const s = q.toString();
+  return s ? `?${s}` : "";
 }
 
-// ── Core Fetch ─────────────────────────────────────────────────────────────────
+export const tokenStore = {
+  get access() {
+    return getAccessToken();
+  },
+  get refresh() {
+    return getRefreshToken();
+  },
+  set(access: string, refresh?: string) {
+    setTokens(access, refresh);
+  },
+  clear() {
+    clearTokens();
+  },
+  getUser<T>(): T | null {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as T) : null;
+  },
+  setUser(user: unknown) {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+  },
+};
 
-export interface ApiError {
-  status: number
-  message: string
-  detail?: unknown
-}
-
-export class ApiRequestError extends Error {
-  status: number
-  detail?: unknown
-
-  constructor(message: string, status: number, detail?: unknown) {
-    super(message)
-    this.name = "ApiRequestError"
-    this.status = status
-    this.detail = detail
+export class ApiError extends Error {
+  status: number;
+  payload: unknown;
+  constructor(message: string, status: number, payload?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.payload = payload;
   }
 }
 
-async function apiFetchInner(
-  path: string,
-  options: RequestInit = {},
-  retry = true
-): Promise<Response> {
-  const token = getAccessToken()
+/** True when the live API could not be reached and sample data is being served. */
+export let usingSampleData = false;
+
+export type RequestOptions = {
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
+  query?: Record<string, string | number | boolean | undefined | null>;
+  signal?: AbortSignal;
+  /** Skip the offline sample-data fallback and surface the error instead. */
+  strict?: boolean;
+};
+
+function buildUrl(path: string, query?: RequestOptions["query"]) {
+  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  if (!query) return url;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+  }
+  const qs = params.toString();
+  return qs ? `${url}?${qs}` : url;
+}
+
+/**
+ * CORS-friendly fetch wrapper: sends credentials, bearer token and JSON headers.
+ * If the API host is unreachable, the request falls back to local sample data so
+ * the UI stays fully explorable while the backend is down.
+ */
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { method = "GET", body, query, signal, strict } = options;
+
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(options.headers as Record<string, string>),
-  }
-  if (token) headers["Authorization"] = `Bearer ${token}`
+    Accept: "application/json",
+    "X-Requested-With": "XMLHttpRequest",
+  };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const token = tokenStore.access;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    signal?.addEventListener("abort", () => controller.abort());
 
-  const isAuthEndpoint = path.startsWith("/auth/login") || path.startsWith("/auth/refresh")
-  if (res.status === 401 && retry && !isAuthEndpoint) {
-    // Attempt token refresh
-    if (isRefreshing) {
-      // Queue behind the in-flight refresh
-      const newToken = await new Promise<string>((resolve, reject) => {
-        pendingQueue.push({ resolve, reject })
-      })
-      headers["Authorization"] = `Bearer ${newToken}`
-      return fetch(`${BASE_URL}${path}`, { ...options, headers })
+    const response = await fetch(buildUrl(path, query), {
+      method,
+      headers,
+      credentials: "include",
+      mode: "cors",
+      signal: controller.signal,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    }).finally(() => clearTimeout(timeout));
+
+    const text = await response.text();
+    const payload = text ? safeJson(text) : null;
+
+    if (!response.ok) {
+      if (response.status === 401) tokenStore.clear();
+      const message =
+        (payload as { message?: string; detail?: string } | null)?.message ??
+        (payload as { detail?: string } | null)?.detail ??
+        `Request failed with status ${response.status}`;
+      throw new ApiError(message, response.status, payload);
     }
 
-    isRefreshing = true
-    try {
-      const newToken = await performRefresh()
-      pendingQueue.forEach((p) => p.resolve(newToken))
-      pendingQueue = []
-      headers["Authorization"] = `Bearer ${newToken}`
-      return fetch(`${BASE_URL}${path}`, { ...options, headers })
-    } catch (err) {
-      pendingQueue.forEach((p) => p.reject(err))
-      pendingQueue = []
-      throw err
-    } finally {
-      isRefreshing = false
+    usingSampleData = false;
+    return unwrap<T>(payload);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (strict) throw error;
+    const fallback = mockResolve<T>(path, method, body, query);
+    if (fallback !== undefined) {
+      usingSampleData = true;
+      return fallback;
     }
+    throw error;
   }
-
-  return res
 }
 
-export async function apiFetch<T>(
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+/** Accepts `{ data: ... }` envelopes as well as bare payloads. */
+function unwrap<T>(payload: unknown): T {
+  if (payload && typeof payload === "object" && "data" in (payload as Record<string, unknown>)) {
+    return (payload as { data: T }).data;
+  }
+  return payload as T;
+}
+
+export const api = {
+  get: <T>(path: string, query?: RequestOptions["query"]) => apiRequest<T>(path, query ? { query } : {}),
+  post: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: "POST", body }),
+  put: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: "PUT", body }),
+  patch: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: "PATCH", body }),
+  delete: <T>(path: string) => apiRequest<T>(path, { method: "DELETE" }),
+};
+
+export async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const res = await apiFetchInner(path, options)
+  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const token = getAccessToken();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, {
+    ...options,
+    headers,
+  });
 
   if (!res.ok) {
-    let detail: unknown
-    let message = `HTTP ${res.status}`
+    let errorDetail = "API error";
     try {
-      const body = await res.json()
-      detail = body
-      message = body?.detail || body?.message || message
+      const errJson = await res.json();
+      errorDetail = errJson.detail || errJson.message || errorDetail;
     } catch {
-      // ignore parse errors
+      // ignore
     }
-    throw new ApiRequestError(message, res.status, detail)
+    if (res.status === 401) {
+      clearTokens();
+    }
+    throw new Error(errorDetail);
   }
 
-  // Handle 204 No Content
-  if (res.status === 204) return undefined as T
-
-  return res.json() as Promise<T>
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-export function buildQuery(params: Record<string, string | number | boolean | undefined | null>): string {
-  const q = new URLSearchParams()
-  for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== "") q.set(k, String(v))
+  if (res.status === 204) {
+    return {} as T;
   }
-  const s = q.toString()
-  return s ? `?${s}` : ""
+
+  return res.json();
 }
 
-export default apiFetch
+export default apiFetch;

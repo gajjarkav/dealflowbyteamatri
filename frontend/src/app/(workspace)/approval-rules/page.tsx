@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
@@ -25,9 +25,9 @@ const TRIGGER_LABELS: Record<ApprovalTrigger, string> = {
 }
 
 const TRIGGER_COLORS: Record<ApprovalTrigger, string> = {
-  rep_confirm: "bg-blue-500/10 text-blue-600 border-blue-500/30",
-  manager_escalate: "bg-orange-500/10 text-orange-600 border-orange-500/30",
-  finance_escalate: "bg-purple-500/10 text-purple-600 border-purple-500/30",
+  rep_confirm: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  manager_escalate: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+  finance_escalate: "bg-purple-500/10 text-purple-400 border-purple-500/30",
   auto: "bg-slate-500/10 text-slate-600 border-slate-500/30",
 }
 
@@ -175,7 +175,7 @@ export default function ApprovalRulesPage() {
         </Card>
         <Card className="premium-card p-5 bg-surface/50 border border-border flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-            <ShieldAlert className="w-6 h-6 text-orange-600" />
+            <ShieldAlert className="w-6 h-6 text-orange-400" />
           </div>
           <div>
             <div className="text-xs font-heading font-bold text-text-secondary uppercase tracking-widest">Risk Factors</div>
@@ -184,7 +184,7 @@ export default function ApprovalRulesPage() {
         </Card>
         <Card className="premium-card p-5 bg-surface/50 border border-border flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-            <GitMerge className="w-6 h-6 text-blue-600" />
+            <GitMerge className="w-6 h-6 text-blue-400" />
           </div>
           <div>
             <div className="text-xs font-heading font-bold text-text-secondary uppercase tracking-widest">Execution</div>
@@ -241,13 +241,13 @@ export default function ApprovalRulesPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       {r.min_margin_pct != null ? (
-                        <span className="font-mono font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{r.min_margin_pct}%</span>
+                        <span className="font-mono font-extrabold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">{r.min_margin_pct}%</span>
                       ) : (
                         <span className="text-text-muted/50 font-medium">—</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <Badge variant={r.is_active ? "default" : "secondary"} className={`text-[10px] uppercase tracking-wider ${r.is_active ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : ""}`}>
+                      <Badge variant={r.is_active ? "default" : "secondary"} className={`text-[10px] uppercase tracking-wider ${r.is_active ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15" : ""}`}>
                         {r.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </td>

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -199,9 +199,9 @@ export default function ProductsPage() {
       <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total SKUs", value: total, icon: <Package className="w-5 h-5 text-accent" /> },
-          { label: "Categories", value: categories.length, icon: <Layers className="w-5 h-5 text-blue-600" /> },
-          { label: "Avg Margin", value: "48%", icon: <Tag className="w-5 h-5 text-emerald-600" /> }, // Mock avg for visual balance
-          { label: "Subscriptions", value: products.filter(p => p.is_recurring).length, icon: <RefreshCcw className="w-5 h-5 text-purple-600" /> },
+          { label: "Categories", value: categories.length, icon: <Layers className="w-5 h-5 text-blue-400" /> },
+          { label: "Avg Margin", value: "48%", icon: <Tag className="w-5 h-5 text-emerald-400" /> }, // Mock avg for visual balance
+          { label: "Subscriptions", value: products.filter(p => p.is_recurring).length, icon: <RefreshCcw className="w-5 h-5 text-purple-400" /> },
         ].map((stat, i) => (
           <Card key={i} className="premium-card p-4 flex items-center gap-4 bg-surface/50">
             <div className="p-3 rounded-xl bg-background border border-border shadow-sm">
@@ -273,14 +273,14 @@ export default function ProductsPage() {
                     <td className="px-6 py-4 font-mono text-right">
                       {p.margin_pct != null ? (
                         <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                          p.margin_pct >= 40 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                          p.margin_pct >= 40 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
                         }`}>
                           {p.margin_pct.toFixed(1)}%
                         </span>
                       ) : "—"}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant="secondary" className={`text-[10px] uppercase tracking-wider ${p.is_recurring ? "bg-purple-50 text-purple-600" : "bg-surface-hover"}`}>
+                      <Badge variant="secondary" className={`text-[10px] uppercase tracking-wider ${p.is_recurring ? "bg-purple-500/10 text-purple-400" : "bg-surface-hover"}`}>
                         {p.is_recurring ? "Recurring" : "One-time"}
                       </Badge>
                     </td>

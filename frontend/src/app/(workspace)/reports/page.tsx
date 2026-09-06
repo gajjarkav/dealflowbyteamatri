@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -45,7 +45,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-5 border-border bg-surface">
           <div className="text-xs font-mono text-text-secondary">TOTAL CLOSED WON BOOKINGS</div>
-          <div className="font-mono text-3xl font-extrabold text-emerald-600 mt-2">
+          <div className="font-mono text-3xl font-extrabold text-emerald-400 mt-2">
             ${totalWon.toLocaleString()}
           </div>
           <div className="text-[11px] text-text-muted mt-2 font-mono">
@@ -58,7 +58,7 @@ export default function ReportsPage() {
           <div className="font-mono text-3xl font-extrabold text-accent mt-2">
             7.4%
           </div>
-          <div className="text-[11px] text-emerald-600 mt-2 font-mono">
+          <div className="text-[11px] text-emerald-400 mt-2 font-mono">
             -3.2% vs baseline before DealFlow360
           </div>
         </Card>
@@ -110,7 +110,7 @@ export default function ReportsPage() {
               key: "margin",
               header: "Average Margin Realized",
               render: (r) => (
-                <span className={`font-mono font-bold ${r.marginScore === "high" ? "text-emerald-600" : "text-amber-600"}`}>
+                <span className={`font-mono font-bold ${r.marginScore === "high" ? "text-emerald-400" : "text-amber-400"}`}>
                   {r.margin}
                 </span>
               )

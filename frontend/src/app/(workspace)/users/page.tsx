@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
@@ -26,10 +26,10 @@ const ROLE_LABELS: Record<Role, string> = {
 }
 
 const ROLE_COLORS: Record<Role, string> = {
-  admin: "border-purple-500/30 text-purple-600 bg-purple-500/10",
-  sales_manager: "border-blue-500/30 text-blue-600 bg-blue-500/10",
-  sales_rep: "border-emerald-500/30 text-emerald-600 bg-emerald-500/10",
-  finance: "border-amber-500/30 text-amber-600 bg-amber-500/10",
+  admin: "border-purple-500/30 text-purple-400 bg-purple-500/10",
+  sales_manager: "border-blue-500/30 text-blue-400 bg-blue-500/10",
+  sales_rep: "border-emerald-500/30 text-emerald-400 bg-emerald-500/10",
+  finance: "border-amber-500/30 text-amber-400 bg-amber-500/10",
   customer: "border-border text-text-secondary bg-surface-hover",
 }
 
@@ -161,7 +161,7 @@ export default function UsersPage() {
         <Card className="premium-card p-5 bg-surface/50 border border-border flex flex-col justify-between">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <UserCheck className="w-4 h-4 text-emerald-600" />
+              <UserCheck className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest">Verified Emails</div>
           </div>
@@ -171,7 +171,7 @@ export default function UsersPage() {
         <Card className="premium-card p-5 bg-surface/50 border border-border flex flex-col justify-between">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-purple-600" />
+              <Shield className="w-4 h-4 text-purple-400" />
             </div>
             <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest">Admins</div>
           </div>
@@ -181,7 +181,7 @@ export default function UsersPage() {
         <Card className="premium-card p-5 bg-surface/50 border border-border flex flex-col justify-between">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <ShieldAlert className="w-4 h-4 text-amber-600" />
+              <ShieldAlert className="w-4 h-4 text-amber-400" />
             </div>
             <div className="text-[10px] font-heading font-bold text-text-secondary uppercase tracking-widest">Inactive</div>
           </div>
@@ -218,7 +218,7 @@ export default function UsersPage() {
                         </div>
                         <div>
                           <div className="font-bold text-text-primary">{u.full_name}</div>
-                          {u.is_system && <Badge variant="secondary" className="text-[9px] uppercase tracking-widest bg-amber-50 text-amber-600 border-amber-200 mt-1">System Account</Badge>}
+                          {u.is_system && <Badge variant="secondary" className="text-[9px] uppercase tracking-widest bg-amber-500/10 text-amber-400 border-amber-500/30 mt-1">System Account</Badge>}
                         </div>
                       </div>
                     </td>
@@ -234,12 +234,12 @@ export default function UsersPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${u.is_email_verified ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${u.is_email_verified ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
                         {u.is_email_verified ? "✓ Verified" : "Pending"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <Badge variant={u.is_active ? "default" : "secondary"} className={`text-[10px] uppercase tracking-wider ${u.is_active ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : ""}`}>
+                      <Badge variant={u.is_active ? "default" : "secondary"} className={`text-[10px] uppercase tracking-wider ${u.is_active ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15" : ""}`}>
                         {u.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </td>

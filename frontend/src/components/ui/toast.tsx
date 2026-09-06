@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { createContext, useContext, useState, useCallback } from "react"
 
 export interface ToastMessage {
@@ -18,7 +18,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
   const toast = useCallback(({ title, description, type = "success" }: Omit<ToastMessage, "id">) => {
-    const id = `toast-${Date.now()}`
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
     setToasts((prev) => [...prev, { id, title, description, type }])
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))

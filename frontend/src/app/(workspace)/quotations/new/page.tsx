@@ -1,201 +1,316 @@
-"use client"
-import React, { useState } from "react"
-import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select } from "@/components/ui/select"
-import { useToast } from "@/components/ui/toast"
-import { ArrowRight, CheckCircle2, ChevronLeft, PackagePlus, Percent, UserSearch } from "lucide-react"
+"use client";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { AlertTriangle, Check, Lightbulb, Plus, Trash2 } from "lucide-react";
 
-const steps = [
-  { id: 1, title: "Customer Info", icon: <UserSearch className="w-5 h-5" /> },
-  { id: 2, title: "Products & Pricing", icon: <PackagePlus className="w-5 h-5" /> },
-  { id: 3, title: "Review & Submit", icon: <CheckCircle2 className="w-5 h-5" /> }
-]
+import { BentoCard, BentoGrid, BentoHeader, MiniBar, PageHeader } from "@/components/bento/bento";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { qk, useApiMutation, useCustomers, useProducts } from "@/hooks/use-dealflow";
+import { quotationService } from "@/lib/api/services";
+import { money, pct } from "@/lib/format";
+
+
+
+type DraftLine = { key: string; productId: string; qty: number; discountPct: number };
+
+const newLine = (): DraftLine => ({ key: crypto.randomUUID(), productId: "", qty: 1, discountPct: 0 });
 
 export default function NewQuotationPage() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [currentStep, setCurrentStep] = useState(1)
-  
-  // Form State
-  const [customer, setCustomer] = useState("")
-  const [products, setProducts] = useState([{ name: "", qty: 1, price: 0 }])
-  const [discount, setDiscount] = useState(0)
+  const router = useRouter();
+  const { data: customers } = useCustomers();
+  const { data: products } = useProducts();
 
-  const handleNext = () => {
-    if (currentStep < 3) setCurrentStep(prev => prev + 1)
-  }
+  const [customerId, setCustomerId] = useState("");
+  const [validUntil, setValidUntil] = useState("");
+  const [notes, setNotes] = useState("");
+  const [lines, setLines] = useState<DraftLine[]>([newLine()]);
 
-  const handleBack = () => {
-    if (currentStep > 1) setCurrentStep(prev => prev - 1)
-    else router.push("/dashboard")
-  }
+  const priced = useMemo(
+    () =>
+      lines.map((line) => {
+        const product = products?.find((p) => p.id === line.productId);
+        const unit = product?.listPrice ?? 0;
+        const cost = product?.cost ?? 0;
+        const net = unit * (1 - line.discountPct / 100);
+        const total = net * line.qty;
+        const marginPct = net > 0 ? ((net - cost) / net) * 100 : 0;
+        return { ...line, product, unit, net, total, marginPct };
+      }),
+    [lines, products],
+  );
 
-  const handleSubmit = () => {
-    toast({
-      title: "Quotation Created",
-      description: "The quotation has been generated and sent for approval.",
-      type: "success"
-    })
-    router.push("/dashboard")
-  }
+  const subtotal = priced.reduce((s, l) => s + l.unit * l.qty, 0);
+  const total = priced.reduce((s, l) => s + l.total, 0);
+  const discount = subtotal - total;
+  const avgMargin = priced.length ? priced.reduce((s, l) => s + l.marginPct, 0) / priced.length : 0;
+  const deepest = priced.reduce((m, l) => Math.max(m, l.discountPct), 0);
 
-  const addProduct = () => {
-    setProducts([...products, { name: "", qty: 1, price: 0 }])
-  }
+  const hasLines = priced.some((line) => line.product);
+  const riskScore = hasLines
+    ? Math.min(99, Math.round(deepest * 2.2 + Math.max(0, 32 - avgMargin) * 1.6 + (total > 250000 ? 18 : 0)))
+    : 0;
 
-  const subtotal = products.reduce((acc, p) => acc + (p.qty * p.price), 0)
-  const total = subtotal * (1 - discount / 100)
+  const blockers = [
+    deepest > 15 ? `A line is discounted ${pct(deepest, 0)} — above the automatic ceiling.` : null,
+    hasLines && avgMargin < 24 ? `Blended margin of ${pct(avgMargin)} sits under the 24% floor.` : null,
+    total > 250000 ? "Total above €250,000 routes to the CRO for sign-off." : null,
+  ].filter(Boolean) as string[];
+
+  const suggestions = [
+    deepest > 10
+      ? { title: "Trade the discount for term", detail: "Offer the same net price on a 24-month commitment instead of a one-off deal." }
+      : { title: "Add a service tier", detail: "Attaching onboarding lifts blended margin without touching unit price." },
+    { title: "Bundle a fast-moving SKU", detail: "Customers on this segment attach thermal probes to 6 of 10 quotes." },
+    { title: "Shorten validity", detail: "A 14-day window historically closes 9 days faster than a 30-day one." },
+  ];
+
+  const mutation = useApiMutation(
+    () =>
+      quotationService.create({
+        customerId,
+        validUntil,
+        notes,
+        lines: priced.map((l) => ({
+          productId: l.productId,
+          sku: l.product?.sku,
+          qty: l.qty,
+          unitPrice: l.unit,
+          discountPct: l.discountPct,
+          total: l.total,
+        })),
+      }),
+    {
+      successMessage: "Quote created",
+      invalidate: [qk.quotations()],
+      onDone: () => router.push("/quotations"),
+    },
+  );
+
+  const ready = customerId && priced.some((l) => l.productId && l.qty > 0);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={handleBack} className="p-2 -ml-2 hover:bg-surface-hover">
-          <ChevronLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-heading font-extrabold text-text-primary tracking-tight">New Quotation</h1>
-          <p className="text-text-secondary text-sm font-medium mt-1">Configure deal specifics and run margin checks.</p>
-        </div>
-      </div>
+    <>
+      <PageHeader
+        eyebrow="Quotations"
+        title="New quote"
+        description="Pricing, margin and risk recalculate as you type — nothing is hidden until submission."
+      />
 
-      {/* Stepper */}
-      <div className="relative flex items-center justify-between before:absolute before:inset-0 before:top-1/2 before:-translate-y-1/2 before:h-0.5 before:bg-border before:-z-10">
-        {steps.map((step) => {
-          const isActive = step.id === currentStep
-          const isPast = step.id < currentStep
-          return (
-            <div key={step.id} className="flex flex-col items-center gap-2 bg-background px-4 z-10">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-colors ${
-                isActive ? "bg-accent text-white shadow-glow" :
-                isPast ? "bg-text-primary text-white" : "bg-surface-hover text-text-muted border border-border"
-              }`}>
-                {step.icon}
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-5">
+        <div className="space-y-4 lg:col-span-2 lg:space-y-5">
+          <BentoCard>
+            <BentoHeader title="Header" subtitle="Who the quote is for and how long it stands" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Customer</Label>
+                <Select value={customerId} onValueChange={setCustomerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(customers ?? []).map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <span className={`text-xs font-bold uppercase tracking-widest ${isActive ? "text-accent" : isPast ? "text-text-primary" : "text-text-muted"}`}>
-                {step.title}
-              </span>
+              <div className="space-y-1.5">
+                <Label htmlFor="valid">Valid until</Label>
+                <Input id="valid" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+              </div>
             </div>
-          )
-        })}
+          </BentoCard>
+
+          <BentoCard delay={0.05}>
+            <BentoHeader
+              title="Lines"
+              subtitle="Quantity tiers apply automatically; manual discount stacks on top"
+              action={
+                <Button variant="outline" size="sm" onClick={() => setLines((prev) => [...prev, newLine()])}>
+                  <Plus className="size-4" />
+                  Add line
+                </Button>
+              }
+            />
+            <div className="space-y-3">
+              {priced.map((line, index) => (
+                <div key={line.key} className="rounded-2xl border border-border bg-surface-2/60 p-4">
+                  <div className="grid gap-3 sm:grid-cols-12">
+                    <div className="space-y-1.5 sm:col-span-5">
+                      <Label className="text-xs">Product</Label>
+                      <Select
+                        value={line.productId}
+                        onValueChange={(value) =>
+                          setLines((prev) => prev.map((l, i) => (i === index ? { ...l, productId: value } : l)))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pick a product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(products ?? []).map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-xs">Qty</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={line.qty}
+                        onChange={(e) =>
+                          setLines((prev) =>
+                            prev.map((l, i) => (i === index ? { ...l, qty: Number(e.target.value) } : l)),
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-xs">Disc. %</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={60}
+                        value={line.discountPct}
+                        onChange={(e) =>
+                          setLines((prev) =>
+                            prev.map((l, i) => (i === index ? { ...l, discountPct: Number(e.target.value) } : l)),
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-xs">Line total</Label>
+                      <div className="flex h-9 items-center font-mono text-sm">{money(line.total)}</div>
+                    </div>
+                    <div className="flex items-end sm:col-span-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Remove line"
+                        onClick={() => setLines((prev) => prev.filter((_, i) => i !== index))}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  {line.product ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      List {money(line.unit)} · net {money(line.net)} · margin {pct(line.marginPct)}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </BentoCard>
+
+          <BentoCard delay={0.1}>
+            <BentoHeader title="Internal notes" subtitle="Visible to approvers, never to the customer" />
+            <Textarea
+              rows={4}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Context an approver needs: competitive pressure, volume commitments, renewal timing…"
+            />
+          </BentoCard>
+        </div>
+
+        <div className="space-y-4 lg:space-y-5">
+          <BentoCard tint="honey" delay={0.05}>
+            <BentoHeader title="Risk preview" />
+            <p className="font-display text-4xl font-semibold">{riskScore}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {!hasLines ? "Add a line to see the score" : riskScore >= 70 ? "Approval certain" : riskScore >= 40 ? "Approval likely" : "Clear to send"}
+            </p>
+            <div className="mt-4">
+              <MiniBar value={riskScore} tone={riskScore >= 70 ? "clay" : riskScore >= 40 ? "honey" : "moss"} />
+            </div>
+            <Separator className="my-4" />
+            <div className="space-y-2 text-sm">
+              {blockers.length === 0 ? (
+                <p className="flex items-start gap-2 text-muted-foreground">
+                  <Check className="mt-0.5 size-4 shrink-0" />
+                  No rule breaches detected.
+                </p>
+              ) : (
+                blockers.map((blocker) => (
+                  <p key={blocker} className="flex items-start gap-2 text-muted-foreground">
+                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-clay-foreground" />
+                    {blocker}
+                  </p>
+                ))
+              )}
+            </div>
+          </BentoCard>
+
+          <BentoCard delay={0.1}>
+            <BentoHeader title="Totals" />
+            <dl className="space-y-2.5 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Subtotal</dt>
+                <dd className="font-mono">{money(subtotal)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Discount</dt>
+                <dd className="font-mono text-clay-foreground">−{money(discount)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted-foreground">Blended margin</dt>
+                <dd className="font-medium">{pct(avgMargin)}</dd>
+              </div>
+              <Separator />
+              <div className="flex items-baseline justify-between">
+                <dt className="font-medium">Total</dt>
+                <dd className="font-display text-2xl font-semibold">{money(total)}</dd>
+              </div>
+            </dl>
+            <div className="mt-5 space-y-2">
+              <Button className="w-full" disabled={!ready || mutation.isPending} onClick={() => mutation.mutate(undefined as never)}>
+                {blockers.length ? "Submit for approval" : "Create quote"}
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={() => router.push("/quotations")}>
+                Cancel
+              </Button>
+            </div>
+          </BentoCard>
+
+          <BentoCard tint="sand" delay={0.15}>
+            <BentoHeader title="Smart suggestions" />
+            <ul className="space-y-3">
+              {suggestions.map((suggestion) => (
+                <li key={suggestion.title} className="flex gap-2.5">
+                  <Lightbulb className="mt-0.5 size-4 shrink-0 text-ember-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">{suggestion.title}</p>
+                    <p className="text-xs text-muted-foreground">{suggestion.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </BentoCard>
+        </div>
       </div>
 
-      <Card className="premium-card p-6 overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          {currentStep === 1 && (
-            <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-              <h2 className="text-xl font-heading font-bold">Select Customer</h2>
-              <div className="grid gap-4">
-                <div>
-                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 block">Search Client</label>
-                  <Select
-                    value={customer}
-                    onChange={(e) => setCustomer(e.target.value)}
-                  >
-                    <option value="">Select a customer...</option>
-                    <option value="acme">Acme Corp (Platinum)</option>
-                    <option value="globex">Globex Inc (Gold)</option>
-                  </Select>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {currentStep === 2 && (
-            <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-heading font-bold">Line Items & Pricing</h2>
-                <Button variant="secondary" onClick={addProduct} className="text-xs h-8"><PackagePlus className="w-4 h-4 mr-2" /> Add Item</Button>
-              </div>
-              
-              <div className="space-y-4">
-                {products.map((p, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-4 p-4 border border-border rounded-xl bg-surface-hover items-end">
-                    <div className="col-span-12 sm:col-span-6">
-                      <label className="text-[10px] font-bold text-text-secondary uppercase mb-1 block">Product</label>
-                      <Input value={p.name} onChange={(e) => {
-                        const newP = [...products]; newP[idx].name = e.target.value; setProducts(newP);
-                      }} placeholder="e.g. Enterprise License" />
-                    </div>
-                    <div className="col-span-6 sm:col-span-3">
-                      <label className="text-[10px] font-bold text-text-secondary uppercase mb-1 block">Qty</label>
-                      <Input type="number" min="1" value={p.qty} onChange={(e) => {
-                        const newP = [...products]; newP[idx].qty = parseInt(e.target.value) || 0; setProducts(newP);
-                      }} />
-                    </div>
-                    <div className="col-span-6 sm:col-span-3">
-                      <label className="text-[10px] font-bold text-text-secondary uppercase mb-1 block">Unit Price ($)</label>
-                      <Input type="number" value={p.price} onChange={(e) => {
-                        const newP = [...products]; newP[idx].price = parseFloat(e.target.value) || 0; setProducts(newP);
-                      }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-border pt-4">
-                <label className="text-[10px] font-bold text-text-secondary uppercase mb-1 block">Global Discount (%)</label>
-                <div className="flex items-center gap-4 max-w-xs">
-                  <Input type="number" min="0" max="100" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} />
-                  <Percent className="w-5 h-5 text-text-muted" />
-                </div>
-                {discount > 20 && (
-                  <div className="mt-2 text-xs font-bold text-amber-500 flex items-center gap-1 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
-                    Warning: Discount exceeds 20%. Will require Manager Approval.
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          {currentStep === 3 && (
-            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-              <h2 className="text-xl font-heading font-bold">Review Quotation</h2>
-              <div className="grid grid-cols-2 gap-6 bg-surface-hover p-6 rounded-xl border border-border">
-                <div>
-                  <p className="text-xs text-text-secondary font-bold uppercase tracking-widest mb-1">Customer</p>
-                  <p className="font-semibold text-lg">{customer ? (customer === "acme" ? "Acme Corp" : "Globex Inc") : "Not selected"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-secondary font-bold uppercase tracking-widest mb-1">Status</p>
-                  <Badge variant="secondary" className="border-accent text-accent bg-accent-soft/30">Draft</Badge>
-                </div>
-              </div>
-
-              <div className="bg-surface rounded-xl border border-border p-6">
-                <div className="flex justify-between items-center mb-4 pb-4 border-b border-border">
-                  <span className="font-medium text-text-secondary">Subtotal</span>
-                  <span className="font-mono font-bold">${subtotal.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center mb-4 pb-4 border-b border-border">
-                  <span className="font-medium text-text-secondary">Discount ({discount}%)</span>
-                  <span className="font-mono font-bold text-red-500">-${(subtotal - total).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center text-xl font-heading font-extrabold text-text-primary">
-                  <span>Total</span>
-                  <span>${total.toLocaleString()}</span>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
-        <div className="mt-8 pt-6 border-t border-border flex justify-end gap-3">
-          {currentStep < 3 ? (
-            <Button onClick={handleNext} className="bg-text-primary text-white hover:bg-text-secondary font-bold shadow-md">
-              Next Step <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} className="bg-accent text-white hover:bg-accent-hover font-bold shadow-glow">
-              Submit Quotation <CheckCircle2 className="w-4 h-4 ml-2" />
-            </Button>
-          )}
-        </div>
-      </Card>
-    </div>
-  )
+      <BentoGrid className="lg:grid-cols-1">
+        <BentoCard tint="sand">
+          <BentoHeader title="Why the risk preview sits beside the form" />
+          <p className="text-sm text-muted-foreground">
+            Reps discover approval requirements at submission time in most systems, which is where deals stall. Showing
+            the score while the discount is still being typed means the trade-off happens during the conversation.
+          </p>
+        </BentoCard>
+      </BentoGrid>
+    </>
+  );
 }

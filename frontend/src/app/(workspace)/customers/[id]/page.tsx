@@ -9,11 +9,15 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { apiGetCustomer, apiUpdateCustomer, CustomerResponse, Tier } from "@/lib/api/customers"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useCurrentUser } from "@/lib/auth/context"
 
 export default function CustomerDetailPage() {
   const { id } = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  
+  const { user } = useCurrentUser()
+  const isAdmin = user && "role" in user && user.role === "admin"
   
   const [customer, setCustomer] = useState<CustomerResponse | null>(null)
   const [formData, setFormData] = useState<Partial<CustomerResponse>>({})
@@ -91,16 +95,22 @@ export default function CustomerDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">Tier</label>
-                  <select
-                    value={formData.tier || "bronze"}
-                    onChange={e => setFormData({...formData, tier: e.target.value as Tier}) }
-                    className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm focus:border-accent outline-none"
-                  >
-                    <option value="bronze">Bronze</option>
-                    <option value="silver">Silver</option>
-                    <option value="gold">Gold</option>
-                    <option value="platinum">Platinum</option>
-                  </select>
+                  {isAdmin ? (
+                    <select
+                      value={formData.tier || "bronze"}
+                      onChange={e => setFormData({...formData, tier: e.target.value as Tier}) }
+                      className="w-full h-9 rounded-md border border-border bg-background px-3 py-1 text-sm focus:border-accent outline-none"
+                    >
+                      <option value="bronze">Bronze</option>
+                      <option value="silver">Silver</option>
+                      <option value="gold">Gold</option>
+                      <option value="platinum">Platinum</option>
+                    </select>
+                  ) : (
+                    <div className="w-full h-9 rounded-md border border-border bg-surface px-3 py-1 text-sm capitalize flex items-center text-text-muted cursor-not-allowed">
+                      {formData.tier || "bronze"}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">Tax ID</label>

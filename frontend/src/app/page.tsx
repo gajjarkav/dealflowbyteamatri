@@ -86,16 +86,11 @@ export default function LandingPage() {
             DealFlow<span className="text-accent">360</span>
           </span>
         </div>
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary">
-          <a href="#features" className="hover:text-text-primary transition-colors">Features</a>
-          <a href="#platform" className="hover:text-text-primary transition-colors">Platform</a>
-          <a href="#security" className="hover:text-text-primary transition-colors">Security</a>
-        </div>
         <div className="flex items-center gap-3">
           <Button variant="ghost" onClick={() => setAuthMode("login")} className="hidden sm:inline-flex font-medium">
             Sign In
           </Button>
-          <Button onClick={() => setAuthMode("signup")} className="font-heading font-medium bg-text-primary text-white hover:bg-text-secondary rounded-full px-6">
+          <Button onClick={() => setAuthMode("signup")} className="font-heading font-medium bg-white text-black hover:bg-gray-200 rounded-full px-6">
             Get Started
           </Button>
         </div>
@@ -108,7 +103,7 @@ export default function LandingPage() {
         <div className="flex-1 p-8 lg:p-20 flex flex-col justify-center relative overflow-hidden bg-surface">
           <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
             <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] rounded-full bg-accent-soft/40 blur-3xl opacity-50" />
-            <div className="absolute top-[40%] -right-[20%] w-[60%] h-[60%] rounded-full bg-amber-100/40 blur-3xl opacity-50" />
+            <div className="absolute top-[40%] -right-[20%] w-[60%] h-[60%] rounded-full bg-amber-500/15/40 blur-3xl opacity-50" />
           </div>
           
           <motion.div 

@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -28,11 +28,11 @@ const STATUS_LABELS: Record<QuotationStatus, string> = {
 const STATUS_COLORS: Record<QuotationStatus, string> = {
   draft: "border-border text-text-secondary",
   pending_approval: "border-accent text-accent bg-accent-soft/30",
-  approved: "border-blue-500/50 text-blue-600 bg-blue-500/10",
-  revision_requested: "border-amber-500/50 text-amber-600 bg-amber-500/10",
-  under_negotiation: "border-purple-500/50 text-purple-600 bg-purple-500/10",
-  accepted: "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
-  fulfilled: "border-emerald-600 text-emerald-700 bg-emerald-500/20",
+  approved: "border-blue-500/50 text-blue-400 bg-blue-500/10",
+  revision_requested: "border-amber-500/50 text-amber-400 bg-amber-500/10",
+  under_negotiation: "border-purple-500/50 text-purple-400 bg-purple-500/10",
+  accepted: "border-emerald-500/50 text-emerald-400 bg-emerald-500/10",
+  fulfilled: "border-emerald-600 text-emerald-400 bg-emerald-500/20",
   cancelled: "border-red-400/50 text-red-500 bg-red-500/10",
 }
 
@@ -181,7 +181,7 @@ export default function PipelinePage() {
                                 {deal.number}
                               </div>
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                (deal.gross_margin_pct || 0) >= 40 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                                (deal.gross_margin_pct || 0) >= 40 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
                               }`}>
                                 {deal.gross_margin_pct != null ? `${deal.gross_margin_pct.toFixed(1)}%` : "—"}
                               </span>
@@ -258,7 +258,7 @@ export default function PipelinePage() {
                         ${(q.total || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-right font-mono font-bold">
-                        <span className={(q.gross_margin_pct || 0) >= 40 ? "text-emerald-600" : "text-amber-600"}>
+                        <span className={(q.gross_margin_pct || 0) >= 40 ? "text-emerald-400" : "text-amber-400"}>
                           {q.gross_margin_pct != null ? `${q.gross_margin_pct.toFixed(1)}%` : "—"}
                         </span>
                       </td>

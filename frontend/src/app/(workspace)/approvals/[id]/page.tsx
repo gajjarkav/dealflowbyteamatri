@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useEffect, useState, useCallback } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,6 @@ export default function ApprovalDetailPage() {
   const [comment, setComment] = useState("")
   const [actionLoading, setActionLoading] = useState(false)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const load = useCallback(() => {
     if (typeof id !== "string") return
     apiGetApproval(id)
@@ -92,7 +91,7 @@ export default function ApprovalDetailPage() {
       </div>
 
       <Card className="p-6 border-amber-500/30 bg-amber-500/5 mb-6">
-        <h3 className="text-sm font-semibold text-amber-600 mb-2">Reason for Escalation</h3>
+        <h3 className="text-sm font-semibold text-amber-400 mb-2">Reason for Escalation</h3>
         <p className="text-sm text-text-primary font-mono whitespace-pre-wrap">
           {req.trigger}
         </p>
@@ -133,7 +132,7 @@ export default function ApprovalDetailPage() {
       <Card className="p-6 border-border bg-surface mt-6">
         <h2 className="text-base font-semibold mb-4 border-b border-border pb-2">Approval Timeline</h2>
         <div className="space-y-4">
-          {req.steps.map((step, i) => (
+          {req.steps.map((step) => (
             <div key={step.id} className="flex items-start gap-4">
               <div className="mt-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-background border border-border">
                 {step.seq}
@@ -174,7 +173,7 @@ export default function ApprovalDetailPage() {
             </Button>
             <Button 
               variant="secondary" 
-              className="flex-1 border-amber-500 text-amber-600 hover:bg-amber-500/10"
+              className="flex-1 border-amber-500 text-amber-400 hover:bg-amber-500/10"
               onClick={() => handleAction("return")}
               disabled={actionLoading}
             >

@@ -43,7 +43,7 @@ class CustomerUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
-@router.get("/", response_model=Paginated[CustomerWithUsers])
+@router.get("", response_model=Paginated[CustomerWithUsers])
 async def list_customers(
     search: Optional[str] = None,
     tier: Optional[TierEnum] = None,

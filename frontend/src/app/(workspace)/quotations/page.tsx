@@ -1,166 +1,237 @@
-"use client"
-import React, { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/toast"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Search, Filter } from "lucide-react"
+"use client";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { FileText, Plus, Search, TrendingUp } from "lucide-react";
+
+import { BentoCard, BentoGrid, BentoHeader, EmptyState, PageHeader, StatCard } from "@/components/bento/bento";
+import { RiskBadge, StatusBadge } from "@/components/layout/status-badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  apiListQuotations,
-  type QuotationResponse,
-  type QuotationStatus,
-} from "@/lib/api/quotations"
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { useQuotations } from "@/hooks/use-dealflow";
+import { dateLabel, money, num, pct } from "@/lib/format";
 
-const STATUS_LABELS: Record<QuotationStatus, string> = {
-  draft: "Draft",
-  pending_approval: "Pending Approval",
-  approved: "Approved",
-  revision_requested: "Revision Req.",
-  under_negotiation: "Negotiation",
-  accepted: "Accepted",
-  cancelled: "Cancelled",
-  fulfilled: "Fulfilled",
-}
 
-const STATUS_COLORS: Record<QuotationStatus, string> = {
-  draft: "border-border text-text-secondary bg-surface",
-  pending_approval: "border-accent/40 text-accent bg-accent-soft/30",
-  approved: "border-blue-500/50 text-blue-600 bg-blue-500/10",
-  revision_requested: "border-amber-500/50 text-amber-600 bg-amber-500/10",
-  under_negotiation: "border-purple-500/50 text-purple-600 bg-purple-500/10",
-  accepted: "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
-  cancelled: "border-red-400/50 text-red-500 bg-red-500/10",
-  fulfilled: "border-emerald-600 text-emerald-700 bg-emerald-500/20",
-}
 
-export default function QuotationsListPage() {
-  const { toast } = useToast()
-  const [quotations, setQuotations] = useState<QuotationResponse[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState("")
+const tabs = [
+  { value: "all", label: "All" },
+  { value: "draft", label: "Draft" },
+  { value: "pending_approval", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await apiListQuotations({ search: search || undefined, page, size: 20 })
-      setQuotations(res.items)
-      setTotal(res.total)
-    } catch {
-      toast({ title: "Error", description: "Failed to load quotations", type: "error" })
-    } finally {
-      setLoading(false)
-    }
-  }, [search, page, toast])
+export default function QuotationsPage() {
+  const { data, isLoading } = useQuotations();
+  const [tab, setTab] = useState("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load()
-  }, [load])
+  const handleTabChange = (newTab: string) => {
+    setTab(newTab);
+    setPage(1);
+  };
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setPage(1);
+  };
+
+  const quotes = useMemo(
+    () =>
+      (data ?? []).filter((quote) => {
+        const matchesTab = tab === "all" || quote.status === tab;
+        const matchesSearch = `${quote.number} ${quote.customer} ${quote.owner}`
+          .toLowerCase()
+          .includes(search.toLowerCase());
+        return matchesTab && matchesSearch;
+      }),
+    [data, tab, search],
+  );
+
+  const totalPages = Math.ceil(quotes.length / pageSize);
+  const paginatedQuotes = quotes.slice((page - 1) * pageSize, page * pageSize);
+
+  const totalValue = (data ?? []).reduce((s, q) => s + q.total, 0);
+  const avgMargin = (data ?? []).reduce((s, q) => s + q.marginPct, 0) / Math.max(1, data?.length ?? 1);
+  const highRisk = (data ?? []).filter((q) => q.riskScore >= 70).length;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Quotations</h1>
-          <p className="text-sm text-text-secondary mt-1">Manage all quotations and deal histories.</p>
-        </div>
-        <Link href="/quotations/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" /> New Quotation
+      <PageHeader
+        eyebrow="Quotations"
+        title="Quotes"
+        description="Everything your team has priced — with the margin and risk position behind each number."
+        actions={
+          <Button size="sm" asChild>
+            <Link href="/quotations/new">
+              <Plus className="size-4" />
+              New quote
+            </Link>
           </Button>
-        </Link>
-      </div>
+        }
+      />
 
-      <Card className="p-4 border-border bg-surface flex flex-col sm:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <Input 
-            placeholder="Search reference or customer..." 
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 h-9"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" className="h-9 px-3">
-            <Filter className="w-4 h-4 mr-2" /> Filter
-          </Button>
-        </div>
-      </Card>
+      <BentoGrid>
+        <StatCard label="Quotes" value={num(data?.length ?? 0)} icon={FileText} tint="ember" />
+        <StatCard label="Total value" value={money(totalValue, "EUR", true)} tint="honey" delay={0.05} />
+        <StatCard label="Average margin" value={pct(avgMargin)} icon={TrendingUp} tint="sand" delay={0.1} />
+        <StatCard label="High risk" value={num(highRisk)} hint="score 70+" tint="clay" delay={0.15} />
+      </BentoGrid>
 
-      <div className="border border-border rounded-lg overflow-hidden bg-background">
-        <table className="w-full text-sm text-left whitespace-nowrap">
-          <thead className="bg-surface border-b border-border text-xs font-mono text-text-secondary">
-            <tr>
-              <th className="px-4 py-3">Reference</th>
-              <th className="px-4 py-3">Customer</th>
-              <th className="px-4 py-3">Rep</th>
-              <th className="px-4 py-3 text-right">Value</th>
-              <th className="px-4 py-3 text-right">Margin</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Date</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/60">
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-5 w-24 rounded-full" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
-                </tr>
-              ))
-            ) : quotations.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-text-muted">No quotations found.</td></tr>
-            ) : quotations.map((q) => (
-              <tr key={q.id} className="hover:bg-surface/60 transition-colors">
-                <td className="px-4 py-3 font-mono font-bold">
-                  <Link href={`/quotations/${q.id}`} className="text-text-primary hover:text-accent">
-                    {q.number || q.id.slice(0, 8)}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 font-medium text-text-secondary">{q.customer_name || "—"}</td>
-                <td className="px-4 py-3 text-text-muted">{q.rep_name || "—"}</td>
-                <td className="px-4 py-3 text-right font-mono font-bold text-text-primary">
-                  ${(q.total || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-right font-mono">
-                  <span className={(q.gross_margin_pct || 0) >= 40 ? "text-emerald-600 font-bold" : "text-amber-600 font-bold"}>
-                    {q.gross_margin_pct != null ? `${q.gross_margin_pct.toFixed(1)}%` : "—"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge variant="secondary" className={`font-mono text-[10px] uppercase tracking-wider ${STATUS_COLORS[q.status]}`}>
-                    {STATUS_LABELS[q.status]}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3 text-right text-xs text-text-muted">
-                  {new Date(q.created_at).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {total > 20 && (
-        <div className="flex items-center justify-between text-xs text-text-muted">
-          <span>Showing page {page} of {Math.ceil(total / 20)}</span>
-          <div className="flex gap-2">
-            <Button variant="secondary" className="h-7 px-2.5 text-xs text-text-secondary hover:text-text-primary font-medium" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>← Prev</Button>
-            <Button variant="ghost" className="h-7 px-3 text-xs" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total}>Next →</Button>
+      <BentoCard padded={false} delay={0.1}>
+        <div className="flex flex-col gap-3 border-b border-border p-5 lg:flex-row lg:items-center lg:justify-between">
+          <Tabs value={tab} onValueChange={handleTabChange}>
+            <TabsList className="flex-wrap">
+              {tabs.map((item) => (
+                <TabsTrigger key={item.value} value={item.value}>
+                  {item.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <div className="relative lg:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search quotes, customers, owners"
+              className="pl-9"
+            />
           </div>
         </div>
-      )}
+
+        {isLoading ? (
+          <div className="space-y-2 p-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 rounded-xl" />
+            ))}
+          </div>
+        ) : quotes.length === 0 ? (
+          <div className="p-5">
+            <EmptyState
+              title="No quotes here"
+              description="Nothing matches this filter yet."
+              action={
+                <Button size="sm" className="mt-3" asChild>
+                  <Link href="/quotations/new">Build a quote</Link>
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Quote</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Margin</TableHead>
+                  <TableHead>Risk</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Valid until</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedQuotes.map((quote, idx) => (
+                  <TableRow 
+                    key={quote.id} 
+                    className="interactive-row animate-in fade-in slide-in-from-bottom-2"
+                    style={{ animationDelay: `${idx * 50}ms`, animationFillMode: "both" }}
+                  >
+                    <TableCell>
+                      <Link href={`/quotations/${quote.id}`}
+                        className="font-medium hover:text-primary transition-colors"
+                      >
+                        {quote.number}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{quote.lines.length} lines</p>
+                    </TableCell>
+                    <TableCell className="text-sm font-medium">{quote.customer}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{quote.owner}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">{money(quote.total, quote.currency, true)}</TableCell>
+                    <TableCell className="text-right text-sm font-medium">{pct(quote.marginPct)}</TableCell>
+                    <TableCell>
+                      <RiskBadge score={quote.riskScore} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={quote.status} />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{dateLabel(quote.validUntil)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            
+            {totalPages > 1 && (
+              <div className="border-t border-border p-4">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        href="#" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage((p) => Math.max(1, p - 1));
+                        }}
+                        className={page === 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <PaginationItem key={i}>
+                        <PaginationLink 
+                          href="#"
+                          isActive={page === i + 1}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPage(i + 1);
+                          }}
+                        >
+                          {i + 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        href="#" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage((p) => Math.min(totalPages, p + 1));
+                        }}
+                        className={page === totalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </div>
+        )}
+      </BentoCard>
+
+      <BentoCard tint="sand">
+        <BentoHeader title="Risk score, plainly" />
+        <p className="text-sm text-muted-foreground">
+          The score blends discount depth against category ceilings, margin distance from the floor, customer credit
+          position and stock availability. Anything at 70 or above will almost certainly need a sign-off.
+        </p>
+      </BentoCard>
     </div>
-  )
+  );
 }

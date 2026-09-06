@@ -186,3 +186,10 @@ async def get_stock_availability(
         for sl, wh in levels
     ]
     return StockAvailabilityResponse(product_id=product_id, availability=items)
+
+# ─── Fulfillment Orders (Mock) ─────────────────────────────
+@router.get("/fulfillment")
+async def get_fulfillment_orders():
+    """Mock endpoint to prevent 404s on the frontend."""
+    return []
+

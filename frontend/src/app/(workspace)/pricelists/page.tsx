@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -214,7 +214,7 @@ export default function PricelistsPage() {
                       <tr key={item.id} className="hover:bg-surface/60">
                         <td className="px-3 py-2 font-medium">{pName(item.product_id)}</td>
                         <td className="px-3 py-2 font-mono">{item.fixed_price != null ? `$${item.fixed_price}` : "—"}</td>
-                        <td className="px-3 py-2 font-mono text-amber-600">{item.discount_pct != null ? `${item.discount_pct}%` : "—"}</td>
+                        <td className="px-3 py-2 font-mono text-amber-400">{item.discount_pct != null ? `${item.discount_pct}%` : "—"}</td>
                         <td className="px-3 py-2 font-mono">{item.min_qty}</td>
                         <td className="px-3 py-2"><Button variant="ghost" className="h-5 px-1.5 text-[10px] text-danger hover:text-danger" onClick={() => handleDeleteItem(item.id)}>×</Button></td>
                       </tr>

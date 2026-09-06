@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
 import { Card } from "@/components/ui/card"
@@ -23,10 +23,10 @@ import { apiListCategories, type CategoryResponse } from "@/lib/api/catalog"
 
 const TIER_ORDER: TierEnum[] = ["bronze", "silver", "gold", "platinum"]
 const TIER_STYLES: Record<TierEnum, { bg: string, text: string, border: string, bgSoft: string }> = {
-  bronze: { bg: "bg-orange-500", text: "text-orange-600", border: "border-orange-500", bgSoft: "bg-orange-500/10" },
+  bronze: { bg: "bg-orange-500", text: "text-orange-400", border: "border-orange-500", bgSoft: "bg-orange-500/10" },
   silver: { bg: "bg-slate-400", text: "text-slate-600", border: "border-slate-400", bgSoft: "bg-slate-400/10" },
-  gold: { bg: "bg-amber-500", text: "text-amber-600", border: "border-amber-500", bgSoft: "bg-amber-500/10" },
-  platinum: { bg: "bg-purple-500", text: "text-purple-600", border: "border-purple-500", bgSoft: "bg-purple-500/10" },
+  gold: { bg: "bg-amber-500", text: "text-amber-400", border: "border-amber-500", bgSoft: "bg-amber-500/10" },
+  platinum: { bg: "bg-purple-500", text: "text-purple-400", border: "border-purple-500", bgSoft: "bg-purple-500/10" },
 }
 
 const containerVariants = {
@@ -220,7 +220,7 @@ export default function DiscountTiersPage() {
           <div className="p-6 border-b border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                <Tag className="w-5 h-5 text-purple-600" />
+                <Tag className="w-5 h-5 text-purple-400" />
               </div>
               <div>
                 <h2 className="text-lg font-heading font-bold text-text-primary">Category Overrides</h2>

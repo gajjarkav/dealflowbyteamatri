@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState } from "react"
 import { useCurrentUser } from "@/lib/auth/context"
 import { Button } from "@/components/ui/button"
@@ -55,7 +55,7 @@ export default function UserProfilePage() {
           </div>
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1">Assigned Role</label>
-            <div className="mt-1 flex items-center gap-2"><span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 text-xs font-medium">{"role" in user ? (user as unknown as {role: string}).role : "Admin"}</span></div>
+            <div className="mt-1 flex items-center gap-2"><span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs font-medium">{"role" in user ? (user as unknown as {role: string}).role : "Admin"}</span></div>
           </div>
         </div>
       </div>

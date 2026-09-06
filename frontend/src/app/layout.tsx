@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Inter, Outfit, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/context";
+import { RoleProvider } from "@/components/layout/role-context";
 import { ToastProvider } from "@/components/ui/toast";
 import InteractiveBackground from "@/components/ui/interactive-background";
+import { QueryProvider } from "@/components/query-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -46,9 +48,13 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         <InteractiveBackground />
-        <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <RoleProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </RoleProvider>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

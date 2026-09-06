@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -211,7 +211,7 @@ export default function PricelistDetailPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   {it.fixed_price != null && <div className="text-sm font-bold">Fixed: ${it.fixed_price}</div>}
-                  {it.discount_pct != null && <div className="text-sm font-bold text-emerald-600">-{it.discount_pct}%</div>}
+                  {it.discount_pct != null && <div className="text-sm font-bold text-emerald-400">-{it.discount_pct}%</div>}
                   <Button variant="ghost" className="h-7 text-xs text-danger" onClick={() => handleDeleteItem(it.id)}>Remove</Button>
                 </div>
               </div>
@@ -289,7 +289,7 @@ export default function PricelistDetailPage() {
               {resolvedPrice.margin_pct != null && (
                 <div>
                   <div className="text-xs text-text-muted">Est. Margin</div>
-                  <div className={`text-lg font-bold ${resolvedPrice.margin_pct > 30 ? 'text-emerald-600' : 'text-amber-600'}`}>{resolvedPrice.margin_pct}%</div>
+                  <div className={`text-lg font-bold ${resolvedPrice.margin_pct > 30 ? 'text-emerald-400' : 'text-amber-400'}`}>{resolvedPrice.margin_pct}%</div>
                 </div>
               )}
             </div>

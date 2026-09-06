@@ -1,11 +1,10 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Dialog } from "@/components/ui/dialog"
 import { FormDrawer } from "@/components/ui/form-drawer"
 import { useToast } from "@/components/ui/toast"
 import Link from "next/link"
@@ -186,11 +185,11 @@ export default function WarehousesPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${wh.is_active ? "bg-emerald-500/10 border-emerald-500/20" : "bg-surface-hover border-border"}`}>
-                      <Building2 className={`w-5 h-5 ${wh.is_active ? "text-emerald-600" : "text-text-muted"}`} />
+                      <Building2 className={`w-5 h-5 ${wh.is_active ? "text-emerald-400" : "text-text-muted"}`} />
                     </div>
                     <div>
                       <div className="font-heading font-extrabold text-text-primary text-base leading-none">{wh.name}</div>
-                      <Badge variant={wh.is_active ? "default" : "secondary"} className={`text-[9px] mt-1.5 uppercase tracking-widest ${wh.is_active ? "bg-emerald-50 text-emerald-600" : ""}`}>
+                      <Badge variant={wh.is_active ? "default" : "secondary"} className={`text-[9px] mt-1.5 uppercase tracking-widest ${wh.is_active ? "bg-emerald-500/10 text-emerald-400" : ""}`}>
                         {wh.is_active ? "Active" : "Archived"}
                       </Badge>
                     </div>
@@ -287,12 +286,12 @@ export default function WarehousesPage() {
                             <td className="px-6 py-4 text-right font-mono font-bold text-text-primary bg-surface/30">
                               {s.qty_on_hand}
                             </td>
-                            <td className="px-6 py-4 text-right font-mono font-bold text-amber-600 bg-amber-50/10">
+                            <td className="px-6 py-4 text-right font-mono font-bold text-amber-400 bg-amber-500/10/10">
                               {s.qty_reserved}
                             </td>
                             <td className="px-6 py-4 text-right">
                               <span className={`font-mono font-extrabold px-2.5 py-1 rounded-md border ${
-                                lowStock ? "bg-red-50 text-red-600 border-red-200" : "bg-emerald-50 text-emerald-600 border-emerald-200"
+                                lowStock ? "bg-red-500/10 text-red-400 border-red-500/30" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                               }`}>
                                 {available}
                               </span>
@@ -359,8 +358,8 @@ export default function WarehousesPage() {
         </form>
       </FormDrawer>
 
-      {/* Adjust Stock Dialog */}
-      <Dialog
+      {/* Adjust Stock FormDrawer */}
+      <FormDrawer
         isOpen={!!adjustItem}
         onClose={() => setAdjustItem(null)}
         title="Adjust Inventory Balance"
@@ -383,7 +382,7 @@ export default function WarehousesPage() {
               </div>
               <div className="pl-4 border-l border-border">
                 <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-text-secondary block mb-1">Post-Delta Projection</span>
-                <span className={`text-2xl font-mono font-extrabold ${adjustDelta > 0 ? "text-emerald-600" : adjustDelta < 0 ? "text-amber-600" : "text-text-primary"}`}>
+                <span className={`text-2xl font-mono font-extrabold ${adjustDelta > 0 ? "text-emerald-400" : adjustDelta < 0 ? "text-amber-400" : "text-text-primary"}`}>
                   {Math.max(0, adjustItem.qty_on_hand + adjustDelta)}
                 </span>
               </div>
@@ -418,7 +417,7 @@ export default function WarehousesPage() {
             </div>
           </div>
         )}
-      </Dialog>
+      </FormDrawer>
     </motion.div>
   )
 }
